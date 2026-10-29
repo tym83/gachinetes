@@ -48,6 +48,7 @@ EOF
 }
 last() { k logs "$1" 2>/dev/null | tail -1; }
 first() { k logs "$1" 2>/dev/null | head -1; }
+export -f last first
 
 echo "== live migration"
 counter counter $N2
