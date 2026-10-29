@@ -60,7 +60,7 @@ run kube-apiserver --etcd-servers=http://127.0.0.1:2379 --etcd-compaction-interv
   --requestheader-extra-headers-prefix=X-Remote-Extra- --requestheader-group-headers=X-Remote-Group \
   --requestheader-username-headers=X-Remote-User \
   --proxy-client-cert-file=$R/pki/front-proxy-client.crt --proxy-client-key-file=$R/pki/front-proxy-client.key \
-  --enable-aggregator-routing=true --encryption-provider-config=$R/pki/encryption.yaml
+  --enable-aggregator-routing=true --encryption-provider-config=$R/pki/encryption.yaml --allow-privileged=true
 until kubectl --kubeconfig $R/kube/super-admin.conf get --raw /readyz >/dev/null 2>&1; do sleep 1; done
 run kube-controller-manager --kubeconfig=$R/kube/controller-manager.conf \
   --authentication-kubeconfig=$R/kube/controller-manager.conf --authorization-kubeconfig=$R/kube/controller-manager.conf \

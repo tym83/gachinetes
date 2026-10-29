@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	authnv1 "k8s.io/api/authentication/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -28,7 +29,7 @@ func (a *app) whoami(ctx context.Context) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	r, err := cs.AuthenticationV1().SelfSubjectReviews().Create(ctx, nil, metav1.CreateOptions{})
+	r, err := cs.AuthenticationV1().SelfSubjectReviews().Create(ctx, &authnv1.SelfSubjectReview{}, metav1.CreateOptions{})
 	if err != nil {
 		return "", err
 	}
@@ -39,7 +40,7 @@ func (a *app) contractCmd() *cobra.Command {
 	var role, ns, dur, reason string
 	var spotter bool
 	c := &cobra.Command{
-		Use:   "contract NAME --role ROLE --for 1h [-n NS] [--spotter]",
+		Use:   "contract NAME --role ROLE --for 1h [--in NS] [--spotter]",
 		Short: "Elevated access for a while: a cluster role bound to you, taken back on time or by the safeword",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -69,7 +70,7 @@ func (a *app) contractCmd() *cobra.Command {
 		},
 	}
 	c.Flags().StringVar(&role, "role", "", "the cluster role")
-	c.Flags().StringVarP(&ns, "namespace-scope", "s", "", "bind it in this namespace only")
+	c.Flags().StringVar(&ns, "in", "", "bind it in this namespace only")
 	c.Flags().StringVar(&dur, "for", "1h", "how long, up to 24h")
 	c.Flags().StringVar(&reason, "reason", "", "why, for the record")
 	c.Flags().BoolVar(&spotter, "spotter", false, "a second person approves it")

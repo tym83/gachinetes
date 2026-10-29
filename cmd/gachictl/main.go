@@ -30,7 +30,14 @@ type app struct {
 }
 
 func main() {
-	a := &app{flags: genericclioptions.NewConfigFlags(true)}
+	root := rootCommand(&app{flags: genericclioptions.NewConfigFlags(true)})
+	if err := root.Execute(); err != nil {
+		fmt.Fprintln(os.Stderr, "Oh shit, I'm sorry:", err)
+		os.Exit(1)
+	}
+}
+
+func rootCommand(a *app) *cobra.Command {
 	root := &cobra.Command{
 		Use:           "gachictl",
 		Short:         "♂ Gachinetes ♂: rewind, undelete and the rest of the gym",
@@ -40,11 +47,9 @@ func main() {
 	a.flags.AddFlags(root.PersistentFlags())
 	root.PersistentFlags().StringVar(&a.tapeURL, "tape-url", "", "the tape service directly, instead of through the API server")
 	root.PersistentFlags().StringVarP(&a.output, "output", "o", "", "yaml or json; a table when empty")
-	root.AddCommand(a.getCmd(), a.rewindCmd(), a.historyCmd(), a.graveyardCmd(), a.undeleteCmd(), a.infoCmd(), a.vhsCmd(), a.boutsCmd(), a.beltsCmd(), a.whyCmd(), a.billCmd(), a.contractCmd(), a.spotCmd(), a.safewordCmd(), a.dungeonCmd())
-	if err := root.Execute(); err != nil {
-		fmt.Fprintln(os.Stderr, "Oh shit, I'm sorry:", err)
-		os.Exit(1)
-	}
+	root.AddCommand(a.getCmd(), a.rewindCmd(), a.historyCmd(), a.graveyardCmd(), a.undeleteCmd(), a.infoCmd(), a.vhsCmd(),
+		a.boutsCmd(), a.beltsCmd(), a.whyCmd(), a.billCmd(), a.contractCmd(), a.spotCmd(), a.safewordCmd(), a.dungeonCmd())
+	return root
 }
 
 // call asks the tape: an aggregated API of the cluster, or, with

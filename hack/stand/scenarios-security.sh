@@ -64,8 +64,8 @@ kubectl create clusterrolebinding bob-delete --clusterrole=delete-namespaces --u
 
 echo "== contracts"
 check "alice cannot read prod's secrets on her own" bash -c "! kubectl -n prod get secrets --as alice"
-check "alice may not grant herself admin" bash -c "! gachictl contract fix-1 --role admin -s prod --for 10m --as alice"
-check "alice asks with a spotter" gachictl contract fix-2 --role admin -s prod --for 10m --spotter --as alice
+check "alice may not grant herself admin" bash -c "! gachictl contract fix-1 --role admin --in prod --for 10m --as alice"
+check "alice asks with a spotter" gachictl contract fix-2 --role admin --in prod --for 10m --spotter --as alice
 check "the contract waits for its spotter" waitfor 15 bash -c "kubectl get contract fix-2 -o jsonpath='{.status.phase}' | grep -qx Pending"
 check "alice cannot spot herself" bash -c "! gachictl spot contract/fix-2 --as alice"
 check "bob, who may not grant admin, cannot spot it" bash -c "! gachictl spot contract/fix-2 --as bob"
@@ -73,13 +73,13 @@ check "carol spots it" gachictl spot contract/fix-2 --as carol
 check "the contract holds" waitfor 15 bash -c "kubectl get contract fix-2 -o jsonpath='{.status.phase}' | grep -qx Active"
 check "alice reads prod's secrets now" waitfor 15 kubectl -n prod get secrets --as alice
 check "nobody changes its terms" bash -c "! kubectl patch contract fix-2 --type merge -p '{\"spec\":{\"duration\":\"24h\"}}'"
-check "a short contract runs out" bash -c "gachictl contract fix-3 --role view -s prod --for 5s && sleep 12 && kubectl get contract fix-3 -o jsonpath='{.status.phase}' | grep -qx Expired"
+check "a short contract runs out" bash -c "gachictl contract fix-3 --role view --in prod --for 5s && sleep 12 && kubectl get contract fix-3 -o jsonpath='{.status.phase}' | grep -qx Expired"
 
 echo "== the safeword"
 gachictl safeword >/dev/null
 check "every contract ends" waitfor 15 bash -c "kubectl get contract fix-2 -o jsonpath='{.status.phase}' | grep -qx Revoked"
 check "alice is back to what she had" waitfor 15 bash -c "! kubectl -n prod get secrets --as alice"
-check "a contract after the safeword holds" bash -c "gachictl contract fix-4 --role view -s prod --for 10m && waitfor 15 bash -c \"kubectl get contract fix-4 -o jsonpath='{.status.phase}' | grep -qx Active\""
+check "a contract after the safeword holds" bash -c "gachictl contract fix-4 --role view --in prod --for 10m && waitfor 15 bash -c \"kubectl get contract fix-4 -o jsonpath='{.status.phase}' | grep -qx Active\""
 
 echo "== spotters"
 kubectl label ns prod gym.gachinetes.dev/spotted=true >/dev/null
