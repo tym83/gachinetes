@@ -1,0 +1,2 @@
+# Checkpoint and restore of containers, for live migration and rounds.
+criu
