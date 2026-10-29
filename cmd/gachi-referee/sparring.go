@@ -129,4 +129,3 @@ func toMapList(v any) []any {
 	_ = json.Unmarshal(raw, &out)
 	return out
 }
-

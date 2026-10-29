@@ -61,7 +61,9 @@ type Record struct {
 }
 
 // HourOfWeek is the key of an hour in the week's memory.
-func HourOfWeek(t time.Time) string { return fmt.Sprintf("%s-%02d", t.Weekday().String()[:3], t.Hour()) }
+func HourOfWeek(t time.Time) string {
+	return fmt.Sprintf("%s-%02d", t.Weekday().String()[:3], t.Hour())
+}
 
 // Set is the coach's call for one resource.
 type Set struct {
