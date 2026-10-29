@@ -12,6 +12,8 @@ fail() { echo "FAIL  $*"; fails=$((fails + 1)); }
 check() { local what=$1; shift; if "$@" >/tmp/check.out 2>&1; then pass "$what"; else fail "$what"; sed 's/^/      /' /tmp/check.out | tail -20; fi; }
 waitfor() { local secs=$1; shift; for _ in $(seq 1 "$secs"); do "$@" >/dev/null 2>&1 && return 0; sleep 1; done; "$@"; }
 nodeof() { kubectl -n "$1" get pod "$2" -o jsonpath='{.spec.nodeName}'; }
+# A new namespace takes pods once it has its default service account.
+mkns() { kubectl create ns "$1" >/dev/null && waitfor 30 kubectl -n "$1" get serviceaccount default >/dev/null; }
 export -f waitfor nodeof
 
 for n in n-a n-b; do
@@ -57,7 +59,7 @@ YAML
 }
 
 echo "== weight classes"
-kubectl create ns weights >/dev/null
+mkns weights
 run weights sh1 1 "gym.gachinetes.dev/weight: super-heavyweight"
 check "a super-heavyweight lands" waitfor 30 bash -c "[ -n \"\$(nodeof weights sh1)\" ]"
 run weights p1 100m
@@ -68,7 +70,7 @@ check "a second super-heavyweight finds no node of its own" waitfor 30 bash -c \
 kubectl delete ns weights --wait=false >/dev/null
 
 echo "== tag teams"
-kubectl create ns teams >/dev/null
+mkns teams
 for i in 1 2 3; do run teams big-$i 3 "gym.gachinetes.dev/team: big" "gym.gachinetes.dev/team-size: \"3\""; done
 sleep 20
 check "a team that cannot all fit does not go in at all" bash -c \
@@ -80,14 +82,14 @@ check "a team that fits goes in together" waitfor 60 bash -c \
 run teams trio-1 100m "gym.gachinetes.dev/team: trio" "gym.gachinetes.dev/team-size: \"3\""
 run teams trio-2 100m "gym.gachinetes.dev/team: trio" "gym.gachinetes.dev/team-size: \"3\""
 check "a team still coming waits, and says how many are in" waitfor 30 bash -c \
-  "kubectl -n teams get events --field-selector involvedObject.name=trio-1,reason=FailedScheduling -o jsonpath='{.items[*].message}' | grep -q '2 of 3 in the gym'"
+  "kubectl -n teams get events --field-selector reason=FailedScheduling -o jsonpath='{.items[*].message}' | grep -q 'tag team trio: 2 of 3 in the gym'"
 run teams trio-3 100m "gym.gachinetes.dev/team: trio" "gym.gachinetes.dev/team-size: \"3\""
 check "the third member brings the team in" waitfor 90 bash -c \
   "[ \$(kubectl -n teams get pods -l gym.gachinetes.dev/team=trio -o jsonpath='{range .items[*]}{.spec.nodeName}{\"\\n\"}{end}' | grep -c .) -eq 3 ]"
 kubectl delete ns teams --wait=false >/dev/null
 
 echo "== boys next door"
-kubectl create ns door >/dev/null
+mkns door
 kubectl apply -f - >/dev/null <<'YAML'
 apiVersion: v1
 kind: Pod
@@ -115,7 +117,7 @@ YAML
 check "the placeholders hold their room" waitfor 60 bash -c \
   "[ \$(kubectl -n gachinetes get pods -l gym.gachinetes.dev/protein=warm,gym.gachinetes.dev/protein-part=reserve -o jsonpath='{range .items[*]}{.spec.nodeName}{\"\\n\"}{end}' | grep -c .) -eq 2 ]"
 check "the images are held on the nodes" waitfor 30 kubectl -n gachinetes get daemonset protein-warm-images
-kubectl create ns lift >/dev/null
+mkns lift
 run lift heavy 3
 check "a real pod pushes a placeholder out and takes its room" waitfor 60 bash -c "[ -n \"\$(nodeof lift heavy)\" ]"
 check "a placeholder waits for room again" waitfor 30 bash -c \
@@ -126,7 +128,7 @@ kubectl delete ns lift --wait=false >/dev/null
 for ns in lift; do waitfor 120 bash -c "! kubectl get ns $ns" >/dev/null; done
 
 echo "== three hundred bucks"
-kubectl create ns cheap >/dev/null
+mkns cheap
 kubectl apply -f - >/dev/null <<'YAML'
 apiVersion: gym.gachinetes.dev/v1
 kind: PriceList
