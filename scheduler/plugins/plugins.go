@@ -12,6 +12,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/klog/v2"
 	fwk "k8s.io/kube-scheduler/framework"
 )
 
@@ -115,9 +116,26 @@ type TagTeam struct {
 }
 
 var (
-	_ fwk.PreFilterPlugin = &TagTeam{}
-	_ fwk.PermitPlugin    = &TagTeam{}
+	_ fwk.PreFilterPlugin   = &TagTeam{}
+	_ fwk.PermitPlugin      = &TagTeam{}
+	_ fwk.EnqueueExtensions = &TagTeam{}
 )
+
+// EventsToRegister brings a waiting member back to the queue as soon as
+// a teammate comes into the gym, rather than at the next periodic retry.
+func (*TagTeam) EventsToRegister(context.Context) ([]fwk.ClusterEventWithHint, error) {
+	return []fwk.ClusterEventWithHint{{
+		Event: fwk.ClusterEvent{Resource: fwk.Pod, ActionType: fwk.Add},
+		QueueingHintFn: func(_ klog.Logger, pod *v1.Pod, _, newObj interface{}) (fwk.QueueingHint, error) {
+			added, ok := newObj.(*v1.Pod)
+			name, _, member := team(pod)
+			if ok && member && added.Namespace == pod.Namespace && added.Labels[TeamLabel] == name {
+				return fwk.Queue, nil
+			}
+			return fwk.QueueSkip, nil
+		},
+	}}, nil
+}
 
 func NewTagTeam(_ context.Context, _ runtime.Object, h fwk.Handle) (fwk.Plugin, error) {
 	return &TagTeam{h: h}, nil
