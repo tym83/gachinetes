@@ -28,6 +28,8 @@ import (
 var (
 	boutsGVR    = schema.GroupVersionResource{Group: belts.Group, Version: belts.Version, Resource: "bouts"}
 	policiesGVR = schema.GroupVersionResource{Group: belts.Group, Version: belts.Version, Resource: "beltpolicies"}
+	budgetsGVR  = schema.GroupVersionResource{Group: belts.Group, Version: belts.Version, Resource: "budgets"}
+	pricesGVR   = schema.GroupVersionResource{Group: belts.Group, Version: belts.Version, Resource: "pricelists"}
 )
 
 // unwatched are resources the referee leaves alone: written by design by
@@ -70,15 +72,21 @@ func main() {
 
 	factory := dynamicinformer.NewDynamicSharedInformerFactory(dyn, 0)
 	watchAll(cs.Discovery(), factory, ref)
-	pol := factory.ForResource(policiesGVR).Informer()
-	_, _ = pol.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc:    func(any) { h.reload(ctx, pol.GetStore()) },
-		UpdateFunc: func(any, any) { h.reload(ctx, pol.GetStore()) },
-		DeleteFunc: func(any) { h.reload(ctx, pol.GetStore()) },
-	})
+	reload := cache.ResourceEventHandlerFuncs{
+		AddFunc:    func(any) { h.reload(ctx) },
+		UpdateFunc: func(any, any) { h.reload(ctx) },
+		DeleteFunc: func(any) { h.reload(ctx) },
+	}
+	for _, gvr := range []schema.GroupVersionResource{policiesGVR, budgetsGVR, pricesGVR} {
+		_, _ = factory.ForResource(gvr).Informer().AddEventHandler(reload)
+	}
+	h.policyStore = factory.ForResource(policiesGVR).Informer().GetStore()
+	h.budgetStore = factory.ForResource(budgetsGVR).Informer().GetStore()
+	h.priceStore = factory.ForResource(pricesGVR).Informer().GetStore()
+	h.pods = factory.ForResource(schema.GroupVersionResource{Version: "v1", Resource: "pods"}).Informer().GetIndexer()
 	factory.Start(ctx.Done())
 	factory.WaitForCacheSync(ctx.Done())
-	h.reload(ctx, pol.GetStore())
+	h.reload(ctx)
 	log.Printf("♂ gachi-referee: watching, window %s, %d switches make a bout", *window, *switches)
 
 	announcer := &announcer{cs: cs, dyn: dyn}
