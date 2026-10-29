@@ -1,0 +1,130 @@
+# gachi-tape: the cluster's tape as the aggregated API tape.gachinetes.dev.
+# Needs control planes booted with kuberoot.datastore=kuberoot-store and
+# kuberoot.store-tape: it reads the store member's tape on 127.0.0.1:2382.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: gachinetes
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: gachi-tape
+  namespace: gachinetes
+---
+# It asks the API server whether a caller may read what it asks for.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: gachi-tape:auth-delegator
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:auth-delegator
+subjects:
+- kind: ServiceAccount
+  name: gachi-tape
+  namespace: gachinetes
+---
+# It reads how the API server vouches for callers.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: gachi-tape:auth-reader
+  namespace: kube-system
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: extension-apiserver-authentication-reader
+subjects:
+- kind: ServiceAccount
+  name: gachi-tape
+  namespace: gachinetes
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: gachi-tape
+  namespace: gachinetes
+spec:
+  selector:
+    matchLabels:
+      app: gachi-tape
+  template:
+    metadata:
+      labels:
+        app: gachi-tape
+    spec:
+      serviceAccountName: gachi-tape
+      # The tape listens on the node's loopback only.
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      nodeSelector:
+        node-role.kubernetes.io/control-plane: ""
+      tolerations:
+      - operator: Exists
+      containers:
+      - name: gachi-tape
+        image: ghcr.io/tym83/gachinetes/gachi-tape:dev
+        args: [--store=http://127.0.0.1:2382, --listen=:9282]
+        ports:
+        - name: https
+          containerPort: 9282
+        readinessProbe:
+          httpGet: {path: /healthz, port: 9282, scheme: HTTPS}
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 65532
+          readOnlyRootFilesystem: true
+          allowPrivilegeEscalation: false
+          capabilities: {drop: [ALL]}
+        resources:
+          requests: {cpu: 10m, memory: 32Mi}
+          limits: {memory: 256Mi}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gachi-tape
+  namespace: gachinetes
+spec:
+  selector:
+    app: gachi-tape
+  ports:
+  - port: 443
+    targetPort: 9282
+---
+apiVersion: apiregistration.k8s.io/v1
+kind: APIService
+metadata:
+  name: v1.tape.gachinetes.dev
+spec:
+  group: tape.gachinetes.dev
+  version: v1
+  service:
+    name: gachi-tape
+    namespace: gachinetes
+  # The serving certificate is self-signed at start.
+  insecureSkipTLSVerify: true
+  groupPriorityMinimum: 1000
+  versionPriority: 15
+---
+# Read the tape; Secrets come with their data emptied.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: gachinetes:tape-reader
+rules:
+- apiGroups: [tape.gachinetes.dev]
+  resources: [info, objects, history, graveyard, diff]
+  verbs: [get]
+---
+# Read Secrets on the tape too: what undelete needs to bring them back.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: gachinetes:dungeon-master
+rules:
+- apiGroups: [tape.gachinetes.dev]
+  resources: [info, objects, history, graveyard, diff, secrets]
+  verbs: [get]
