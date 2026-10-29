@@ -1,4 +1,5 @@
-# The mover's controller asks agents with a token of this account; agents
+# The mover keeps the records of rounds in its namespace (it runs with an
+# admin's credentials on control planes). Its controller asks agents with a token of this account; agents
 # let in whoever may checkpoint on their node, as the kubelet does.
 apiVersion: v1
 kind: ServiceAccount

@@ -62,6 +62,7 @@ func (c *Controller) Run(ctx context.Context) {
 				}
 			}
 		}
+		c.Rounds(ctx)
 		time.Sleep(3 * time.Second)
 	}
 }
