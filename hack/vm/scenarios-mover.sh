@@ -19,6 +19,7 @@ echo "== a cluster of three"
 for ip in $G1 $G2 $G3; do waitfor 300 $NODEAPI --server https://$ip:50000 get osconfigs >/dev/null; done
 mkdir -p /work/kube
 $NODEAPI --server https://$G1:50000 get kubeconfig admin -o jsonpath='{.kubeconfig}' > $KC
+waitfor 300 kubectl --kubeconfig $KC get namespace kube-system
 for ip in $G2 $G3; do
   name=$($NODEAPI --server https://$ip:50000 get osconfigs -o jsonpath='{.items[0].metadata.name}')
   printf 'apiVersion: node.kuberoot.dev/v1alpha1\nkind: JoinTicket\nmetadata: {name: %s}\nspec: {nodeName: %s, role: Worker, address: %s}\n' "$name" "$name" "$ip" |
@@ -33,7 +34,7 @@ N2=$(kubectl --kubeconfig $KC get nodes -o jsonpath="{.items[?(@.status.addresse
 N3=$(kubectl --kubeconfig $KC get nodes -o jsonpath="{.items[?(@.status.addresses[0].address=='$G3')].metadata.name}")
 check "every node service runs" waitfor 120 bash -c "! $NODEAPI --server https://$G1:50000 get nodeservices --no-headers | grep -v ' Running '"
 check "the cluster has DNS" waitfor 300 bash -c "kubectl --kubeconfig $KC get pods -A | grep -q 'coredns.* Running '"
-check "the scheduler is gachi-scheduler"bash -c "$NODEAPI --server https://$G1:50000 get nodeservice kube-scheduler -o yaml | grep -q gachi-scheduler || $NODEAPI --server https://$G1:50000 get --raw '/apis/node.kuberoot.dev/v1alpha1/nodeservices/kube-scheduler/log?tailLines=200' | grep -qi 'gachi\|TagTeam'"
+check "the scheduler is gachi-scheduler" bash -c "$NODEAPI --server https://$G1:50000 get nodeservice kube-scheduler -o yaml | grep -q gachi-scheduler || $NODEAPI --server https://$G1:50000 get --raw '/apis/node.kuberoot.dev/v1alpha1/nodeservices/kube-scheduler/log?tailLines=200' | grep -qi 'gachi\|TagTeam'"
 
 counter() { # NAME NODE [ANNOTATIONS]
 cat <<EOF | k apply -f - >/dev/null
