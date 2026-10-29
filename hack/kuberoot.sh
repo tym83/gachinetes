@@ -48,7 +48,7 @@ if [ "${1:-}" = build ]; then
     b sh -c 'rm -rf /work/src/gachinetes && mkdir -p /work/src/gachinetes && tar -xzf - -C /work/src/gachinetes'
   b sh -c "set -e; cd /work/src/gachinetes; out=/work/out/${arch}/gachinetes; mkdir -p \$out
     export CGO_ENABLED=0 GOARCH=${arch} GOFLAGS=-mod=mod
-    go build -trimpath -o \$out/ ./cmd/gachi-tape ./cmd/gachi-referee ./cmd/gachi-fantasy ./cmd/gachictl
+    go build -trimpath -o \$out/ ./cmd/gachi-tape ./cmd/gachi-referee ./cmd/gachi-fantasy ./cmd/gachi-mover ./cmd/gachictl
     cd scheduler && go build -trimpath -o \$out/gachi-scheduler ./cmd/gachi-scheduler
     ls -la \$out"
 fi

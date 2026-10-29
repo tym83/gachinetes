@@ -41,8 +41,32 @@ new = """      - name: kube-scheduler
         - --kubeconfig={{kube "admin.kubeconfig"}}
         - --listen={{.Node.IP}}:9443
         - --webhook-url=https://{{.Node.IP}}:9443/belts
+      - name: gachi-mover
+        after: apiserver
+        args:
+        - /usr/bin/gachi-mover
+        - --kubeconfig={{kube "admin.kubeconfig"}}
+        - --agent={{.Node.IP}}:9600
+        - --node={{.Node.Name}}
+        - --controller
 """
 if old not in text:
     sys.exit("profile of edge changed: kube-scheduler is not as expected")
 text = text.replace(old, new, 1)
+
+# Workers run the mover's agent with the kubelet's credentials.
+worker = """      - name: kube-proxy
+        after: kubelet-cert
+"""
+agent = """      - name: gachi-mover
+        after: kubelet-cert
+        args:
+        - /usr/bin/gachi-mover
+        - --kubeconfig=/var/lib/kubelet/kubeconfig
+        - --agent={{.Node.IP}}:9600
+        - --node={{.Node.Name}}
+"""
+if text.count(worker) != 1:
+    sys.exit("profile of edge changed: the worker's kube-proxy is not as expected")
+text = text.replace(worker, agent + worker, 1)
 sys.stdout.write(text)

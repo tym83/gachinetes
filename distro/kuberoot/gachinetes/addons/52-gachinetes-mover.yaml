@@ -1,0 +1,24 @@
+# The mover's controller asks agents with a token of this account; agents
+# let in whoever may checkpoint on their node, as the kubelet does.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: gachi-mover
+  namespace: gachinetes
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: gachinetes:mover
+rules:
+- apiGroups: [""]
+  resources: [nodes/checkpoint]
+  verbs: [create]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: gachinetes:mover
+roleRef: {apiGroup: rbac.authorization.k8s.io, kind: ClusterRole, name: "gachinetes:mover"}
+subjects:
+- {kind: ServiceAccount, name: gachi-mover, namespace: gachinetes}
