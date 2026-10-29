@@ -1,2 +1,3 @@
-# CRIU dumps tmpfs content with tar.
+# CRIU dumps tmpfs content with tar, compressed with gzip.
 tar
+gzip
