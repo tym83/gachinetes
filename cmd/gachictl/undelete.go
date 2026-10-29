@@ -112,29 +112,42 @@ func (a *app) gravesFor(ctx context.Context, t target) ([]tape.Object, error) {
 	return out, nil
 }
 
-func (a *app) restore(ctx context.Context, steps []tape.Step) error {
+// Revival is what happened to one object of a restore.
+type Revival struct {
+	Kind      string `json:"kind"`
+	Namespace string `json:"namespace,omitempty"`
+	Name      string `json:"name"`
+	// Outcome: back, there (already), or failed with Error.
+	Outcome string `json:"outcome"`
+	Error   string `json:"error,omitempty"`
+}
+
+// revive creates the steps in order with the caller's rights, pointing
+// owner references at the UIDs restored owners get.
+func (a *app) revive(ctx context.Context, steps []tape.Step) ([]Revival, error) {
 	cfg, err := a.flags.ToRESTConfig()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	dyn, err := dynamic.NewForConfig(cfg)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	mapper, err := a.flags.ToRESTMapper()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	newUIDs := map[types.UID]types.UID{}
-	revived, failed := 0, 0
+	var out []Revival
 	for _, s := range steps {
 		u := s.Object
 		tape.Rewire(u, newUIDs)
 		gvk := u.GroupVersionKind()
+		r := Revival{Kind: gvk.Kind, Namespace: u.GetNamespace(), Name: u.GetName()}
 		m, err := mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
 		if err != nil {
-			fmt.Printf("✗ %s %s: %v\n", gvk.Kind, u.GetName(), err)
-			failed++
+			r.Outcome, r.Error = "failed", err.Error()
+			out = append(out, r)
 			continue
 		}
 		var ri dynamic.ResourceInterface = dyn.Resource(m.Resource)
@@ -144,19 +157,39 @@ func (a *app) restore(ctx context.Context, steps []tape.Step) error {
 		created, err := ri.Create(ctx, u, metav1.CreateOptions{FieldManager: "gachictl-undelete"})
 		switch {
 		case apierrors.IsAlreadyExists(err):
-			fmt.Printf("= %s %s: already there\n", gvk.Kind, u.GetName())
+			r.Outcome = "there"
 			if live, gerr := ri.Get(ctx, u.GetName(), metav1.GetOptions{}); gerr == nil {
 				newUIDs[s.OldUID] = live.GetUID()
 			}
 		case err != nil:
-			fmt.Printf("✗ %s %s: %v\n", gvk.Kind, u.GetName(), err)
+			r.Outcome, r.Error = "failed", err.Error()
+		default:
+			r.Outcome = "back"
+			newUIDs[s.OldUID] = created.GetUID()
+		}
+		out = append(out, r)
+	}
+	return out, nil
+}
+
+func (a *app) restore(ctx context.Context, steps []tape.Step) error {
+	revivals, err := a.revive(ctx, steps)
+	if err != nil {
+		return err
+	}
+	back, failed := 0, 0
+	for _, r := range revivals {
+		switch r.Outcome {
+		case "there":
+			fmt.Printf("= %s %s: already there\n", r.Kind, r.Name)
+		case "failed":
+			fmt.Printf("✗ %s %s: %s\n", r.Kind, r.Name, r.Error)
 			failed++
 		default:
-			newUIDs[s.OldUID] = created.GetUID()
-			revived++
+			back++
 		}
 	}
-	fmt.Printf("♂ Rest in peace? Not today: %d back", revived)
+	fmt.Printf("♂ Rest in peace? Not today: %d back", back)
 	if failed > 0 {
 		fmt.Printf(", %d failed", failed)
 	}

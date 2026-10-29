@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="gachi-token" content="{{TOKEN}}">
+<title>Gachinetes VHS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=VT323&display=swap">
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div class="crt" aria-hidden="true"></div>
+<div class="tracking" aria-hidden="true"></div>
+<div id="danmaku" aria-hidden="true"></div>
+
+<header class="osd">
+  <div class="brand">♂ GACHINETES <span class="dim">VHS</span></div>
+  <div class="tc">
+    <span id="mode">PLAY ▶</span>
+    <span id="clock">--:--:--</span>
+    <span class="dim">REV</span> <span id="rev">—</span>
+  </div>
+  <button id="theme" class="chip" title="Gym or Dungeon">DUNGEON</button>
+</header>
+
+<section class="deck">
+  <div class="buttons">
+    <button data-act="rew" title="Back one minute">◀◀ REW</button>
+    <button data-act="back" title="Back ten seconds">◀ 10s</button>
+    <button data-act="pause" title="Pause">❚❚</button>
+    <button data-act="play" title="Play the tape forward">▶ PLAY</button>
+    <button data-act="ff" title="Forward one minute">▶▶ FF</button>
+    <button data-act="live" title="Now">⏏ LIVE</button>
+    <label class="speed">×<select id="speed"><option>1</option><option>10</option><option selected>60</option><option>600</option></select></label>
+  </div>
+  <input id="timeline" type="range" min="0" max="1000" value="1000" aria-label="Position on the tape">
+  <div class="ends"><span id="from">—</span><span id="now">—</span></div>
+</section>
+
+<section class="filters">
+  <label>namespace <input id="ns" placeholder="all" autocomplete="off"></label>
+  <label>kind <input id="kind" placeholder="all" autocomplete="off"></label>
+  <nav class="tabs">
+    <button class="tab on" data-tab="floor">GYM FLOOR</button>
+    <button class="tab" data-tab="grave">GRAVEYARD</button>
+  </nav>
+</section>
+
+<main>
+  <section id="floor" class="panel on"></section>
+  <section id="grave" class="panel"></section>
+  <aside class="chat">
+    <h2>CHAT</h2>
+    <ol id="chat"></ol>
+  </aside>
+</main>
+
+<dialog id="history">
+  <h2 id="h-title"></h2>
+  <ol id="h-list"></ol>
+  <pre id="h-body"></pre>
+  <form method="dialog"><button>CLOSE</button></form>
+</dialog>
+
+<dialog id="revive">
+  <h2>REST IN PEACE? NOT TODAY</h2>
+  <div id="r-body"></div>
+  <form method="dialog" class="row">
+    <button value="cancel">CANCEL</button>
+    <button id="r-go" value="go" class="hot">BRING IT BACK</button>
+  </form>
+</dialog>
+
+<p id="status" role="status"></p>
+<script src="/static/app.js"></script>
+</body>
+</html>
