@@ -201,4 +201,3 @@ func (c *Controller) comeBack(ctx context.Context, name string, failed *corev1.P
 	_ = c.cs.CoreV1().ConfigMaps(c.namespace).Delete(ctx, name, metav1.DeleteOptions{})
 	log.Printf("♂ %s/%s came back on %s from its round of %s", r.Namespace, r.Pod, r.Node, r.At.Format(time.TimeOnly))
 }
-
