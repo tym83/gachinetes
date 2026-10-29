@@ -210,7 +210,7 @@ func (a *app) getCmd() *cobra.Command {
 
 func (a *app) rewindCmd() *cobra.Command {
 	var to string
-	var all bool
+	var all, noise bool
 	c := &cobra.Command{
 		Use:   "rewind [KIND[/NAME]] --to TIME|REVISION",
 		Short: "◀◀ What changed between a moment and now",
@@ -244,6 +244,10 @@ func (a *app) rewindCmd() *cobra.Command {
 						o = ch.From
 					}
 					kind, ns, name := describe(*o)
+					// Events and leases come and go all the time: noise here.
+					if !noise && (kind == "Event" || kind == "Lease") {
+						continue
+					}
 					fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", set.mark, kind, ns, name)
 				}
 			}
@@ -252,6 +256,7 @@ func (a *app) rewindCmd() *cobra.Command {
 	}
 	c.Flags().StringVar(&to, "to", "", "a time (RFC 3339, or a duration ago such as 15m) or a revision")
 	c.Flags().BoolVarP(&all, "all-namespaces", "A", false, "every namespace")
+	c.Flags().BoolVar(&noise, "events", false, "show events and leases too")
 	_ = c.MarkFlagRequired("to")
 	return c
 }
@@ -360,7 +365,7 @@ func (a *app) infoCmd() *cobra.Command {
 			}
 			fmt.Printf("TAPE  revisions %d … %d  (%s … %s)\n", i.From, i.Current, when(i.FromTime), when(i.CurrentTime))
 			if !i.Started {
-				fmt.Println("Not recording past compaction yet: is the store booted with kuberoot.store-tape?")
+				fmt.Println("No compaction has archived yet: all the history is still in the store itself.")
 			}
 			return nil
 		},

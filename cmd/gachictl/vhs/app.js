@@ -54,10 +54,13 @@ async function refreshInfo() {
 
 function syncTimeline() {
   const i = state.info;
-  if (!i || !i.fromTime) return;
+  if (!i) return;
   const now = Date.now();
   const at = state.at == null ? now : state.at;
-  $("timeline").value = Math.round(((at - i.fromTime) / (now - i.fromTime)) * 1000);
+  // Before the first archiving compaction the tape has no start time:
+  // the bar then spans the last hour.
+  const from = i.fromTime || now - 3600000;
+  $("timeline").value = Math.round(((at - from) / (now - from)) * 1000);
   $("clock").textContent = hms(at);
   $("mode").textContent = state.at == null ? "LIVE ●" : state.playing ? "PLAY ▶" : "PAUSE ❚❚";
   document.documentElement.dataset.paused = state.playing || state.at == null ? "0" : "1";
@@ -286,9 +289,9 @@ document.querySelector(".buttons").addEventListener("click", (e) => {
 });
 $("timeline").addEventListener("change", (e) => {
   stop();
-  const i = state.info;
   const now = Date.now();
-  seek(i.fromTime + ((now - i.fromTime) * e.target.value) / 1000);
+  const from = state.info.fromTime || now - 3600000;
+  seek(from + ((now - from) * e.target.value) / 1000);
 });
 for (const id of ["ns", "kind", "system"]) $(id).addEventListener("change", () => { render(); drawGraveyard(); });
 document.querySelector(".tabs").addEventListener("click", (e) => {

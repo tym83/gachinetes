@@ -277,7 +277,8 @@ func causeIn(history []tape.Object, at time.Time) string {
 		new := &unstructured.Unstructured{Object: history[i].Object}
 		var paths []string
 		for _, p := range wrestling.Changed(old.Object, new.Object) {
-			if p != "status" && !strings.HasPrefix(p, "status.") && !strings.HasPrefix(p, "metadata.annotations.deployment.kubernetes.io") {
+			if p != "status" && !strings.HasPrefix(p, "status.") && !strings.HasPrefix(p, "metadata.annotations.deployment.kubernetes.io") &&
+				!(p == "metadata.annotations" && onlyRevision(new.GetAnnotations())) {
 				paths = append(paths, p)
 			}
 		}
@@ -366,4 +367,15 @@ func explain(u *unstructured.Unstructured, events []corev1.Event) []string {
 		out = append(out, fmt.Sprintf("%s: %s (×%d)", e.Reason, strings.TrimSpace(e.Message), max(e.Count, 1)))
 	}
 	return out
+}
+
+// onlyRevision: the annotations are only the ones the deployment controller
+// keeps, a write of its own.
+func onlyRevision(a map[string]string) bool {
+	for k := range a {
+		if !strings.HasPrefix(k, "deployment.kubernetes.io/") {
+			return false
+		}
+	}
+	return true
 }
