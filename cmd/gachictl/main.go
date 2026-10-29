@@ -417,9 +417,11 @@ func table(objs []tape.Object, column string, at func(tape.Object) int64) error 
 	return w.Flush()
 }
 
+// when is a moment on the tape; none is a write older than the tape,
+// whose time the tape no longer keeps.
 func when(ms int64) string {
 	if ms == 0 {
-		return "?"
+		return "before the tape"
 	}
 	t := time.UnixMilli(ms)
 	return fmt.Sprintf("%s (%s ago)", t.Format(time.DateTime), time.Since(t).Round(time.Second))
