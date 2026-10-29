@@ -1,0 +1,91 @@
+# The gym: bouts the referee calls, and the policies of belts it holds.
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: bouts.gym.gachinetes.dev
+spec:
+  group: gym.gachinetes.dev
+  scope: Cluster
+  names: {plural: bouts, singular: bout, kind: Bout, categories: [gym]}
+  versions:
+  - name: v1
+    served: true
+    storage: true
+    subresources: {status: {}}
+    additionalPrinterColumns:
+    - {name: Object, type: string, jsonPath: .spec.object.name}
+    - {name: Kind, type: string, jsonPath: .spec.object.kind}
+    - {name: Field, type: string, jsonPath: .spec.path}
+    - {name: Fight, type: string, jsonPath: .status.summary}
+    - {name: Phase, type: string, jsonPath: .status.phase}
+    - {name: Last, type: date, jsonPath: .status.lastSeen}
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            properties:
+              object:
+                type: object
+                properties:
+                  group: {type: string}
+                  kind: {type: string}
+                  namespace: {type: string}
+                  name: {type: string}
+              path: {type: string}
+          status:
+            type: object
+            properties:
+              phase: {type: string, enum: [Fighting, Over]}
+              fighters: {type: object, additionalProperties: {type: integer}}
+              switches: {type: integer}
+              firstSeen: {type: string, format: date-time}
+              lastSeen: {type: string, format: date-time}
+              summary: {type: string}
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: beltpolicies.gym.gachinetes.dev
+spec:
+  group: gym.gachinetes.dev
+  scope: Cluster
+  names: {plural: beltpolicies, singular: beltpolicy, kind: BeltPolicy, shortNames: [belts], categories: [gym]}
+  versions:
+  - name: v1
+    served: true
+    storage: true
+    additionalPrinterColumns:
+    - {name: Kind, type: string, jsonPath: .spec.match.kind}
+    - {name: Group, type: string, jsonPath: .spec.match.group}
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            required: [match, belts]
+            properties:
+              match:
+                type: object
+                required: [kind]
+                properties:
+                  group: {type: string}
+                  kind: {type: string}
+                  namespaces: {type: array, items: {type: string}}
+                  names: {type: array, items: {type: string}}
+              belts:
+                type: array
+                items:
+                  type: object
+                  required: [path, holders]
+                  properties:
+                    path: {type: string}
+                    action: {type: string, enum: [Deny, Warn]}
+                    holders:
+                      type: object
+                      properties:
+                        managers: {type: array, items: {type: string}}
+                        users: {type: array, items: {type: string}}
+                        groups: {type: array, items: {type: string}}

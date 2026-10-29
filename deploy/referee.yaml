@@ -1,0 +1,81 @@
+# gachi-referee: calls bouts and holds belts. Needs deploy/gym.yaml.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: gachi-referee
+  namespace: gachinetes
+---
+# It reads everything it watches; it leaves Secrets alone, but RBAC has
+# no "everything but": the grant is read of all, and the referee's code
+# is what keeps Secrets out of its memory.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: gachinetes:referee
+rules:
+- apiGroups: ["*"]
+  resources: ["*"]
+  verbs: [get, list, watch]
+- apiGroups: [gym.gachinetes.dev]
+  resources: [bouts, bouts/status]
+  verbs: [create, update, delete]
+- apiGroups: [""]
+  resources: [events]
+  verbs: [create]
+- apiGroups: [admissionregistration.k8s.io]
+  resources: [validatingwebhookconfigurations]
+  verbs: [create]
+- apiGroups: [admissionregistration.k8s.io]
+  resources: [validatingwebhookconfigurations]
+  resourceNames: [gachinetes-belts]
+  verbs: [update, delete]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: gachinetes:referee
+roleRef: {apiGroup: rbac.authorization.k8s.io, kind: ClusterRole, name: "gachinetes:referee"}
+subjects:
+- {kind: ServiceAccount, name: gachi-referee, namespace: gachinetes}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gachi-referee
+  namespace: gachinetes
+spec:
+  # One referee: bouts are counted in its memory.
+  replicas: 1
+  strategy: {type: Recreate}
+  selector:
+    matchLabels: {app: gachi-referee}
+  template:
+    metadata:
+      labels: {app: gachi-referee}
+    spec:
+      serviceAccountName: gachi-referee
+      containers:
+      - name: gachi-referee
+        image: ghcr.io/tym83/gachinetes/gachi-referee:dev
+        args: [--listen=:9443]
+        ports: [{name: https, containerPort: 9443}]
+        readinessProbe:
+          httpGet: {path: /healthz, port: 9443, scheme: HTTPS}
+        securityContext:
+          runAsNonRoot: true
+          readOnlyRootFilesystem: true
+          allowPrivilegeEscalation: false
+          capabilities: {drop: [ALL]}
+          seccompProfile: {type: RuntimeDefault}
+        resources:
+          requests: {cpu: 20m, memory: 64Mi}
+          limits: {memory: 1Gi}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gachi-referee
+  namespace: gachinetes
+spec:
+  selector: {app: gachi-referee}
+  ports: [{port: 443, targetPort: 9443}]

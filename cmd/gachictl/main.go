@@ -40,7 +40,7 @@ func main() {
 	a.flags.AddFlags(root.PersistentFlags())
 	root.PersistentFlags().StringVar(&a.tapeURL, "tape-url", "", "the tape service directly, instead of through the API server")
 	root.PersistentFlags().StringVarP(&a.output, "output", "o", "", "yaml or json; a table when empty")
-	root.AddCommand(a.getCmd(), a.rewindCmd(), a.historyCmd(), a.graveyardCmd(), a.undeleteCmd(), a.infoCmd(), a.vhsCmd())
+	root.AddCommand(a.getCmd(), a.rewindCmd(), a.historyCmd(), a.graveyardCmd(), a.undeleteCmd(), a.infoCmd(), a.vhsCmd(), a.boutsCmd(), a.beltsCmd(), a.whyCmd())
 	if err := root.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, "Oh shit, I'm sorry:", err)
 		os.Exit(1)
