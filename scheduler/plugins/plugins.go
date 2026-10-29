@@ -175,6 +175,26 @@ func (t *TagTeam) PreFilter(_ context.Context, _ fwk.CycleState, pod *v1.Pod, _ 
 
 func (*TagTeam) PreFilterExtensions() fwk.PreFilterExtensions { return nil }
 
+// callTeammates brings teammates still out of the ring back to the queue
+// at once: one at the ropes waits for them, and they may have been turned
+// away before the team was complete.
+func (t *TagTeam) callTeammates(pod *v1.Pod, name string) {
+	members, err := t.h.SharedInformerFactory().Core().V1().Pods().Lister().Pods(pod.Namespace).
+		List(labels.SelectorFromSet(labels.Set{TeamLabel: name}))
+	if err != nil {
+		return
+	}
+	out := map[string]*v1.Pod{}
+	for _, m := range members {
+		if m.UID != pod.UID && m.Spec.NodeName == "" {
+			out[m.Namespace+"/"+m.Name] = m
+		}
+	}
+	if len(out) > 0 {
+		t.h.Activate(klog.Background(), out)
+	}
+}
+
 func (t *TagTeam) Permit(_ context.Context, _ fwk.CycleState, pod *v1.Pod, _ string) (*fwk.Status, time.Duration) {
 	name, size, ok := team(pod)
 	if !ok || size == 1 {
@@ -201,6 +221,7 @@ func (t *TagTeam) Permit(_ context.Context, _ fwk.CycleState, pod *v1.Pod, _ str
 	})
 	// Waiting members are assumed, so they are among those placed.
 	if placed < size {
+		t.callTeammates(pod, name)
 		return fwk.NewStatus(fwk.Wait, fmt.Sprintf("♂ tag team %s: %d of %d at the ropes", name, placed, size)), teamWaitLimit
 	}
 	for _, w := range waiting {
