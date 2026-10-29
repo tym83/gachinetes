@@ -106,11 +106,13 @@ func Judge(c Contract, epoch int64, now time.Time) (State, string) {
 	if err := c.Spec.Validate(); err != nil {
 		return Rejected, err.Error()
 	}
-	if c.Phase == string(Revoked) || (c.Epoch != 0 && c.Epoch < epoch) {
-		return Revoked, "♂ safeword: the trust epoch moved on"
-	}
+	// A contract that ran out stays run out: the safeword ends what still
+	// holds, not what ended before it.
 	if c.Phase == string(Expired) {
 		return Expired, "its time is up"
+	}
+	if c.Phase == string(Revoked) || (c.Epoch != 0 && c.Epoch < epoch) {
+		return Revoked, "♂ safeword: the trust epoch moved on"
 	}
 	if c.Spec.Spotter && c.ApprovedBy == "" {
 		return Pending, "waits for a spotter: gachictl spot contract/" + c.Name
