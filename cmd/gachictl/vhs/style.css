@@ -1,44 +1,47 @@
-:root {
-  --bg: #0b0b10;
-  --panel: #14141c;
-  --ink: #e8f0ff;
-  --dim: #8a93a8;
-  --osd: #7fffd4;
-  --hot: #ff3b5c;
-  --add: #6bff8f;
-  --gone: #ff6b6b;
-  --chg: #ffd84d;
-  --edge: #2a2a38;
-  --tile: none;
-}
-:root[data-theme="gym"] {
-  --bg: #dfe6ea;
-  --panel: #f5f8fa;
-  --ink: #142028;
-  --dim: #5b6b75;
-  --osd: #0b6b8f;
-  --hot: #c2185b;
-  --add: #1b8a3a;
-  --gone: #b3261e;
-  --chg: #9a6b00;
-  --edge: #b9c6cd;
-  --tile: linear-gradient(#0000 calc(100% - 1px), #b9c6cd 0) 0 0 / 32px 32px,
-          linear-gradient(90deg, #0000 calc(100% - 1px), #b9c6cd 0) 0 0 / 32px 32px;
+:root, :root[data-theme="gym"] {
+  /* Gym: a tape of the nineties, played too often. Faded teal shadows with
+     a green cast, washed magenta and cyan, a burnt cream white, low
+     contrast, colour bleeding off every edge. */
+  --bg: #2b3a37;
+  --panel: #34463f;
+  --ink: #e9dcc0;
+  --dim: #9fa58d;
+  --osd: #8fe0d2;
+  --hot: #e07aa8;
+  --add: #a8d68a;
+  --gone: #e88a7a;
+  --chg: #e6c46a;
+  --edge: #4d5f55;
+  --bleed-a: #ff4fa055;
+  --bleed-b: #3fe6ff55;
+  --wash: saturate(.78) contrast(.9) brightness(1.02) sepia(.12);
+  --tile: repeating-linear-gradient(90deg, #ffffff05 0 1px, #0000 1px 3px);
+  --vignette: radial-gradient(ellipse at center, #0000 55%, #0b120f99 100%);
 }
 :root[data-theme="dungeon"] {
-  --bg: #120607;
-  --panel: #1e0b0d;
-  --ink: #ffe9e6;
-  --dim: #b08a86;
-  --osd: #ff5a3d;
-  --edge: #4a1a1d;
-  --tile: radial-gradient(circle at 8px 8px, #3a1416 2px, #0000 3px) 0 0 / 48px 48px;
+  /* The dungeon: darker than the gym, lit by one red bulb. */
+  --bg: #050203;
+  --panel: #0e0507;
+  --ink: #c9a7a0;
+  --dim: #6e4c48;
+  --osd: #b8241c;
+  --hot: #e0352a;
+  --add: #7f9f5a;
+  --gone: #d0473a;
+  --chg: #b08a2a;
+  --edge: #2a0e10;
+  --bleed-a: #ff1e1e40;
+  --bleed-b: #3a00ff20;
+  --wash: saturate(.65) contrast(1.05) brightness(.82);
+  --tile: radial-gradient(circle at 8px 8px, #1e0709 2px, #0000 3px) 0 0 / 48px 48px;
+  --vignette: radial-gradient(ellipse at 50% 35%, #ff1a0a12 0%, #0000 35%, #000000e6 100%);
 }
 
 * { box-sizing: border-box; }
 html, body { margin: 0; }
 body {
-  background: var(--tile), var(--bg);
+  background: var(--vignette), var(--tile), var(--bg);
+  background-attachment: fixed;
   color: var(--ink);
   font-family: "VT323", ui-monospace, Menlo, monospace;
   font-size: 20px;
@@ -74,7 +77,8 @@ button.hot { border-color: var(--hot); color: var(--hot); }
   animation: track 7s linear infinite;
 }
 @keyframes track { from { top: -60px; } to { top: 100vh; } }
-.osd, .deck button, h2 { text-shadow: 1px 0 #ff00ff55, -1px 0 #00ffff55; }
+/* Colour bleeds off every edge, as on a worn tape. */
+.osd, .deck button, h2, h3, .athlete .n, .where { text-shadow: 1.5px 0 var(--bleed-a), -1.5px 0 var(--bleed-b); }
 
 .osd {
   position: sticky; top: 0; z-index: 10;
@@ -159,3 +163,7 @@ dialog::backdrop { background: #000a; }
 .athlete.later { opacity: .45; border-style: dashed; border-color: var(--add); }
 .athlete.later .m { color: var(--add); }
 .buttons button.on { border-color: var(--osd); color: var(--osd); background: color-mix(in srgb, var(--osd) 15%, var(--panel)); }
+
+/* The wash of a worn tape, on what is shown; not on body, where a filter
+   would unpin the fixed scanlines and the flying changes. */
+.osd, .deck, .filters, main, #danmaku { filter: var(--wash); }

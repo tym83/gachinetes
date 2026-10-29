@@ -20,7 +20,8 @@ function setTheme(t) {
   $("theme").textContent = t === "dungeon" ? "GYM" : "DUNGEON";
   store("theme", t);
 }
-setTheme(load("theme") || (matchMedia("(prefers-color-scheme: light)").matches ? "gym" : "dungeon"));
+// The gym is where one starts; the dungeon is for those who ask.
+setTheme(load("theme") || "gym");
 $("theme").onclick = () => setTheme(document.documentElement.dataset.theme === "dungeon" ? "gym" : "dungeon");
 
 async function api(path, params = {}) {
