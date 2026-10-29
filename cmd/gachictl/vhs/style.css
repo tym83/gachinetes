@@ -150,3 +150,12 @@ dialog::backdrop { background: #000a; }
   .dm { display: none; }
 }
 #r-body ul { list-style: none; padding-left: 0; }
+
+.where { margin-top: 10px; padding: 6px 10px; border: 1px solid var(--osd); color: var(--osd); font-size: 22px; }
+.where.past { border-color: var(--chg); color: var(--chg); }
+.since { color: var(--dim); font-size: 18px; min-height: 1.2em; margin-top: 4px; }
+.legend { color: var(--dim); font-size: 15px; margin: 6px 0 0; }
+.m-gone { color: var(--gone); } .m-chg { color: var(--chg); } .m-later { color: var(--add); }
+.athlete.later { opacity: .45; border-style: dashed; border-color: var(--add); }
+.athlete.later .m { color: var(--add); }
+.buttons button.on { border-color: var(--osd); color: var(--osd); background: color-mix(in srgb, var(--osd) 15%, var(--panel)); }

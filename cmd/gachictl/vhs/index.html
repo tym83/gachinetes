@@ -26,16 +26,23 @@
 
 <section class="deck">
   <div class="buttons">
-    <button data-act="rew" title="Back one minute">◀◀ REW</button>
+    <button data-act="rew" title="Rewind until stopped">◀◀ REW</button>
     <button data-act="back" title="Back ten seconds">◀ 10s</button>
-    <button data-act="pause" title="Pause">❚❚</button>
-    <button data-act="play" title="Play the tape forward">▶ PLAY</button>
-    <button data-act="ff" title="Forward one minute">▶▶ FF</button>
-    <button data-act="live" title="Now">⏏ LIVE</button>
-    <label class="speed">×<select id="speed"><option>1</option><option>10</option><option selected>60</option><option>600</option></select></label>
+    <button data-act="pause" title="Stop the tape here">❚❚</button>
+    <button data-act="play" title="Play forward from here">▶ PLAY</button>
+    <button data-act="fwd" title="Forward ten seconds">10s ▶</button>
+    <button data-act="ff" title="Fast forward until stopped">▶▶ FF</button>
+    <button data-act="live" title="Back to now">⏏ LIVE</button>
+    <label class="speed">×<select id="speed"><option>1</option><option selected>10</option><option>60</option><option>600</option></select></label>
   </div>
   <input id="timeline" type="range" min="0" max="1000" value="1000" aria-label="Position on the tape">
-  <div class="ends"><span id="from">—</span><span id="now">—</span></div>
+  <div class="ends"><span id="from">—</span><span id="now">now</span></div>
+  <div id="where" class="where live">● LIVE — the cluster as it is now</div>
+  <div id="since" class="since"></div>
+  <p class="legend"><span class="m-gone">† gone by now</span> — deleted after this moment ·
+    <span class="m-chg">~ changed since</span> — will change by now ·
+    <span class="m-later">+ comes later</span> — does not exist yet at this moment ·
+    click a card for its history</p>
 </section>
 
 <section class="filters">

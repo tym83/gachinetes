@@ -52,21 +52,47 @@ async function refreshInfo() {
   $("now").textContent = "now";
 }
 
-function syncTimeline() {
+// tapeStart is the oldest moment the bar reaches: the tape's start, or the
+// last hour before the first archiving compaction gives it one.
+function tapeStart() {
   const i = state.info;
-  if (!i) return;
+  return (i && i.fromTime) || Date.now() - 3600000;
+}
+
+function ago(ms) {
+  const s = Math.max(0, Math.round((Date.now() - ms) / 1000));
+  if (s < 60) return s + "s";
+  if (s < 3600) return Math.floor(s / 60) + "m " + (s % 60) + "s";
+  return Math.floor(s / 3600) + "h " + Math.floor((s % 3600) / 60) + "m";
+}
+
+const modes = { play: "PLAY ▶", rew: "◀◀ REW", ff: "▶▶ FF" };
+
+function syncTimeline() {
   const now = Date.now();
   const at = state.at == null ? now : state.at;
-  // Before the first archiving compaction the tape has no start time:
-  // the bar then spans the last hour.
-  const from = i.fromTime || now - 3600000;
-  $("timeline").value = Math.round(((at - from) / (now - from)) * 1000);
+  const from = tapeStart();
+  if (!state.dragging) $("timeline").value = Math.round(((at - from) / (now - from)) * 1000);
+  $("from").textContent = hms(from);
   $("clock").textContent = hms(at);
-  $("mode").textContent = state.at == null ? "LIVE ●" : state.playing ? "PLAY ▶" : "PAUSE ❚❚";
-  document.documentElement.dataset.paused = state.playing || state.at == null ? "0" : "1";
+  $("mode").textContent = state.at == null ? "LIVE ●" : modes[state.motion] || "PAUSE ❚❚";
+  document.documentElement.dataset.paused = state.motion || state.at == null ? "0" : "1";
+  const where = $("where");
+  if (state.at == null) {
+    where.className = "where live";
+    where.textContent = "● LIVE — the cluster as it is now";
+  } else {
+    where.className = "where past";
+    where.textContent = `◀◀ THE PAST: ${hms(at)}, ${ago(at)} ago` + (state.rev ? ` — revision ${state.rev}` : "") + " — ⏏ LIVE to come back";
+  }
+  for (const btn of document.querySelectorAll(".buttons button")) {
+    btn.classList.toggle("on", btn.dataset.act === state.motion || (btn.dataset.act === "live" && state.at == null));
+  }
 }
 
 async function render() {
+  if (state.busy) { state.again = true; return; }
+  state.busy = true;
   syncTimeline();
   try {
     const f = filters();
@@ -75,22 +101,38 @@ async function render() {
       state.at == null ? null : api("diff", { ...f, from: position() }),
     ]);
     $("rev").textContent = now.revision;
+    state.rev = state.at == null ? null : now.revision;
     const later = new Map();
+    let ghosts = [];
     if (diff) {
+      const show = (c) => $("system").checked || !isSystem(c.to || c.from);
       diff.removed.forEach((c) => later.set(c.key, "gone"));
       diff.changed.forEach((c) => later.set(c.key, "chg"));
+      ghosts = diff.added.filter(show).map((c) => ({ ...c.to, later: true }));
+      $("since").textContent = `From this moment to now: † ${diff.removed.filter(show).length} gone · ~ ${diff.changed.filter(show).length} changed · + ${ghosts.length} came later`;
+    } else {
+      $("since").textContent = "";
     }
-    drawFloor(now.objects, later);
+    syncTimeline();
+    drawFloor(now.objects.concat(ghosts), later);
     if (state.last != null && state.last !== now.revision) await chatBetween(state.last, now.revision);
     state.last = now.revision;
     say("");
   } catch (e) {
-    // The tape may have been cut since it was last asked about.
+    // The tape may have been cut since it was last asked about (its
+    // retention): the position moves to its new start, and a running
+    // tape runs on from there.
     if (/knows no revision|older than the tape|Requested Range/i.test(e.message) && state.at != null) {
       await refreshInfo();
-      if (state.at < state.info.fromTime) { stop(); seek(state.info.fromTime); return; }
+      state.at = Math.ceil(tapeStart() / 1000) * 1000;
+      say("The tape was cut by its retention: it starts at " + hms(tapeStart()) + " now.");
+      state.again = true;
+      return;
     }
     say("Oh shit, I'm sorry: " + e.message);
+  } finally {
+    state.busy = false;
+    if (state.again) { state.again = false; render(); }
   }
 }
 
@@ -127,12 +169,12 @@ function drawFloor(objects, later) {
     grid.className = "athletes";
     for (const o of list.sort((a, b) => (kindOf(a) + nameOf(a)).localeCompare(kindOf(b) + nameOf(b)))) {
       const b = document.createElement("button");
-      const mark = later.get(o.key);
+      const mark = o.later ? "later" : later.get(o.key);
       b.className = "athlete" + (mark ? " " + mark : "");
       b.innerHTML = '<span class="k"></span><span class="n"></span><span class="m"></span>';
       b.querySelector(".k").textContent = kindOf(o);
       b.querySelector(".n").textContent = nameOf(o);
-      b.querySelector(".m").textContent = mark === "gone" ? "† gone by now" : mark === "chg" ? "~ changed since" : o.error ? o.error : "";
+      b.querySelector(".m").textContent = { gone: "† gone by now", chg: "~ changed since", later: "+ comes later" }[mark] || o.error || "";
       b.onclick = () => showHistory(o);
       grid.append(b);
     }
@@ -150,6 +192,7 @@ async function chatBetween(from, to) {
     ...d.changed.map((c) => ["gasm", "gachiGASM", "~", c]),
   ];
   const shown = lines.filter((l) => $("system").checked || !isSystem(l[3].to || l[3].from));
+  let flown = 0;
   for (const [cls, emote, sign, c] of shown.slice(0, 40)) {
     const o = c.to || c.from;
     const text = `${sign} ${kindOf(o)} ${nsOf(o) ? nsOf(o) + "/" : ""}${nameOf(o)}`;
@@ -158,7 +201,9 @@ async function chatBetween(from, to) {
     li.firstChild.textContent = emote;
     li.lastChild.textContent = text;
     $("chat").prepend(li);
-    fly(text);
+    // Winding, the changes go by too fast to fly across the screen; and
+    // only a few fly at once, the chat keeps them all.
+    if (state.motion !== "rew" && state.motion !== "ff" && flown++ < 3 && $("danmaku").children.length < 8) fly(text);
   }
   while ($("chat").children.length > 200) $("chat").lastChild.remove();
 }
@@ -257,41 +302,55 @@ async function revive(g) {
   };
 }
 
-// The deck.
-function stop() { state.playing = false; clearInterval(state.timer); state.timer = null; }
+// The deck: a tape that runs until stopped. PLAY runs forward in time
+// times the speed, REW and FF wind ten times faster, PAUSE stops where it is.
+function stop() { state.motion = null; clearInterval(state.timer); state.timer = null; syncTimeline(); }
 function seek(ms) {
-  const i = state.info;
   const now = Date.now();
   if (ms >= now - 1000) { state.at = null; stop(); }
-  // Moments are whole seconds: the first the tape can answer for is the
-  // one after it starts.
-  else state.at = Math.max(i && i.fromTime ? Math.ceil(i.fromTime / 1000) * 1000 : ms, ms);
+  else state.at = Math.max(Math.ceil(tapeStart() / 1000) * 1000, ms);
   render();
 }
 function step(delta) { seek((state.at == null ? Date.now() : state.at) + delta); }
 
+function run(motion) {
+  stop();
+  if (state.at == null && motion !== "rew") return;
+  if (state.at == null) state.at = Date.now();
+  state.motion = motion;
+  const tick = 500;
+  state.timer = setInterval(() => {
+    const speed = Number($("speed").value) * (motion === "play" ? 1 : 4);
+    const delta = speed * tick * (motion === "rew" ? -1 : 1);
+    const next = state.at + delta;
+    if (motion === "rew" && next <= tapeStart()) { seek(tapeStart()); stop(); return; }
+    seek(next);
+  }, tick);
+  syncTimeline();
+}
+
 document.querySelector(".buttons").addEventListener("click", (e) => {
   const act = e.target.closest("button") && e.target.closest("button").dataset.act;
   switch (act) {
-    case "rew": stop(); step(-60000); break;
+    case "rew": case "ff": case "play": run(act); break;
     case "back": stop(); step(-10000); break;
-    case "ff": stop(); step(60000); break;
-    case "pause": stop(); if (state.at == null) state.at = Date.now(); syncTimeline(); break;
+    case "fwd": stop(); step(10000); break;
+    case "pause": if (state.at == null) state.at = Date.now(); stop(); render(); break;
     case "live": stop(); seek(Date.now()); break;
-    case "play":
-      if (state.at == null) return;
-      stop();
-      state.playing = true;
-      state.timer = setInterval(() => step(1000 * Number($("speed").value)), 1000);
-      syncTimeline();
-      break;
   }
 });
-$("timeline").addEventListener("change", (e) => {
+// The bar: the time follows the thumb while it is dragged, the cluster
+// follows when it is let go.
+const bar = $("timeline");
+const barTime = () => tapeStart() + ((Date.now() - tapeStart()) * bar.value) / 1000;
+bar.addEventListener("input", () => {
+  state.dragging = true;
   stop();
-  const now = Date.now();
-  const from = state.info.fromTime || now - 3600000;
-  seek(from + ((now - from) * e.target.value) / 1000);
+  $("clock").textContent = hms(barTime());
+});
+bar.addEventListener("change", () => {
+  state.dragging = false;
+  seek(barTime());
 });
 for (const id of ["ns", "kind", "system"]) $(id).addEventListener("change", () => { render(); drawGraveyard(); });
 document.querySelector(".tabs").addEventListener("click", (e) => {
