@@ -51,7 +51,7 @@ metadata:
 spec:
   group: gym.gachinetes.dev
   scope: Cluster
-  names: {plural: beltpolicies, singular: beltpolicy, kind: BeltPolicy, shortNames: [belts], categories: [gym]}
+  names: {plural: beltpolicies, singular: beltpolicy, kind: BeltPolicy, shortNames: [bp], categories: [gym]}
   versions:
   - name: v1
     served: true
