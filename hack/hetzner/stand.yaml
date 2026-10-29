@@ -1,0 +1,41 @@
+# The stand: a control plane in one pod, on the kuberoot store with its
+# tape, and gachi-tape next to it. No nodes: what it tests is the API.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: stand
+  namespace: tenant-gachinetes
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: replicated
+  resources:
+    requests:
+      storage: 20Gi
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: stand
+  namespace: tenant-gachinetes
+  labels:
+    app: gachinetes-stand
+spec:
+  terminationGracePeriodSeconds: 5
+  containers:
+  - name: tools
+    image: golang:1.26-bookworm
+    command: [sh, -c, "mkdir -p /work/tmp && exec sleep infinity"]
+    workingDir: /work
+    env:
+    - {name: TMPDIR, value: /work/tmp}
+    - {name: GOPATH, value: /work/go}
+    - {name: GOCACHE, value: /work/gocache}
+    resources:
+      requests: {cpu: 500m, memory: 4Gi}
+      limits: {cpu: "4", memory: 8Gi}
+    volumeMounts:
+    - {name: work, mountPath: /work}
+  volumes:
+  - name: work
+    persistentVolumeClaim:
+      claimName: stand

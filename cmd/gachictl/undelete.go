@@ -72,7 +72,7 @@ func (a *app) gravesFor(ctx context.Context, t target) ([]tape.Object, error) {
 		q.Del("kind")
 	}
 	var graves []tape.Object
-	if err := a.call(ctx, "/v1/graveyard", q, &graves); err != nil {
+	if err := a.call(ctx, "/graveyard", q, &graves); err != nil {
 		return nil, err
 	}
 	if t.kind != "Namespace" {
@@ -88,7 +88,7 @@ func (a *app) gravesFor(ctx context.Context, t target) ([]tape.Object, error) {
 		return nil, fmt.Errorf("namespace %s is not in the graveyard (still terminating?)", t.name)
 	}
 	var history []tape.Object
-	if err := a.call(ctx, "/v1/history", url.Values{"key": {ns.Key}}, &history); err != nil {
+	if err := a.call(ctx, "/history", url.Values{"key": {ns.Key}}, &history); err != nil {
 		return nil, err
 	}
 	// The deletion started at the first version with a deletion time

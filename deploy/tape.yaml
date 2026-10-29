@@ -117,7 +117,9 @@ metadata:
 rules:
 - apiGroups: [tape.gachinetes.dev]
   resources: [info, objects, history, graveyard, diff]
-  verbs: [get]
+  # The API server asks for list on the paths of an aggregated API, the
+  # tape for get.
+  verbs: [get, list]
 ---
 # Read Secrets on the tape too: what undelete needs to bring them back.
 apiVersion: rbac.authorization.k8s.io/v1
@@ -127,4 +129,4 @@ metadata:
 rules:
 - apiGroups: [tape.gachinetes.dev]
   resources: [info, objects, history, graveyard, diff, secrets]
-  verbs: [get]
+  verbs: [get, list]

@@ -153,6 +153,13 @@ func Discovery() http.Handler {
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(v)
 	}
+	// The aggregator asks for OpenAPI; the tape has no typed objects.
+	mux.HandleFunc("GET /openapi/v2", func(w http.ResponseWriter, _ *http.Request) {
+		write(w, map[string]any{"swagger": "2.0", "info": map[string]string{"title": Group, "version": Version}, "paths": map[string]any{}})
+	})
+	mux.HandleFunc("GET /openapi/v3", func(w http.ResponseWriter, _ *http.Request) {
+		write(w, map[string]any{"paths": map[string]any{}})
+	})
 	mux.HandleFunc("GET /apis", func(w http.ResponseWriter, _ *http.Request) {
 		write(w, metav1.APIGroupList{TypeMeta: metav1.TypeMeta{Kind: "APIGroupList", APIVersion: "v1"},
 			Groups: []metav1.APIGroup{{Name: Group, Versions: []metav1.GroupVersionForDiscovery{gv}, PreferredVersion: gv}}})

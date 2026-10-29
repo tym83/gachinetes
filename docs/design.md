@@ -215,6 +215,37 @@ sick leader is replaced before it fails.
 - **Away match** — bursting a team to another cluster over the mesh (for
   example GPUs from a public cloud) when the home gym is full.
 
+## Between people
+
+The same fights happen between people working on one cluster.
+
+- **Console ring** — during an incident only one person at a time holds
+  `exec`, `edit` and `rollout` in a namespace. Others see who holds the ring
+  and queue; a challenge takes it when the holder agrees or stays silent past
+  a timeout. Two people fixing production at once no longer overwrite each
+  other.
+- **People's belts** — field ownership extends to people: the image of a
+  production Deployment has a belt holder, like CODEOWNERS for live objects.
+  Someone else's change is a challenge the holder accepts or declines.
+- **Team bouts for capacity** — when the cluster is short, teams bid from
+  their budgets. Idle quota can be lent for a sparring session; the owner
+  takes it back by preemption, with a warning.
+- **Spotter as pairing** — the two-person rule calls a specific person, not a
+  chat channel.
+- **Clashing fantasies** — two people preparing changes in their own branches
+  see the conflict before anything is applied: who breaks what for whom.
+- **Gym titles** — Boss of this gym for the most incidents closed in a month,
+  Performance artist for a Friday-evening deploy; counted from cause chains.
+- **Toil wallet** — every engineer has a budget for manual actions (`exec`,
+  `port-forward`, hand edits); who reaches into production by hand most is
+  visible in numbers.
+- **Sorry for what? in reviews** — the postmortem assembles itself from the
+  cause chain: who changed what and what followed. No blame, and no "it
+  happened by itself" either.
+- **Dungeon for sessions** — a session that behaves suspiciously (mass reads
+  of Secrets, a login from a new place) is not killed but moved to the
+  Dungeon: read-only until the Dungeon Master looks at it.
+
 ## Interface
 
 A VHS tape from the nineties.

@@ -1,0 +1,14 @@
+# The Gachinetes stand: one pod with a control plane on the tape store.
+apiVersion: apps.cozystack.io/v1alpha1
+kind: Tenant
+metadata:
+  name: gachinetes
+  namespace: tenant-root
+spec:
+  etcd: false
+  ingress: false
+  monitoring: false
+  seaweedfs: false
+  resourceQuotas:
+    cpu: "8"
+    memory: 16Gi

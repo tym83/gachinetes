@@ -20,6 +20,7 @@ import (
 
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/tym83/gachinetes/pkg/tape"
 )
@@ -27,8 +28,12 @@ import (
 func main() {
 	store := flag.String("store", "http://127.0.0.1:2382", "the store member's tape")
 	listen := flag.String("listen", ":9282", "where the API is served, HTTPS")
+	kubeconfig := flag.String("kubeconfig", "", "the cluster to ask, when not run in it")
 	flag.Parse()
 	cfg, err := rest.InClusterConfig()
+	if *kubeconfig != "" {
+		cfg, err = clientcmd.BuildConfigFromFlags("", *kubeconfig)
+	}
 	if err != nil {
 		log.Fatal(err)
 	}
