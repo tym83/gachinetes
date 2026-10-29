@@ -45,7 +45,7 @@ func main() {
 	flag.StringVar(&f.at, "at", "", "the point the fantasy branches from: a revision or an RFC 3339 time; empty: now")
 	flag.StringVar(&changes, "f", "", "the change: manifests to apply, comma separated files")
 	flag.StringVar(&f.work, "work", "/tmp/fantasy", "where the fantasy keeps its store, certificates and logs")
-	flag.StringVar(&f.bin, "bin", "/usr/local/bin", "where kuberoot-store, kube-apiserver, kube-controller-manager, kube-scheduler, kubeadm, kubectl and kwok are")
+	flag.StringVar(&f.bin, "bin", "/usr/local/bin", "where kuberoot-store, kube-apiserver, kube-controller-manager, kube-scheduler, kubectl and kwok are")
 	flag.StringVar(&f.report, "report", "", "write the report as JSON here too")
 	flag.DurationVar(&f.quiet, "until-quiet", 20*time.Second, "the fantasy is over once nothing changes this long")
 	flag.DurationVar(&f.timeout, "timeout", 10*time.Minute, "and in any case after this long")

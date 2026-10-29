@@ -1,8 +1,14 @@
 package fantasy
 
 import (
+	"crypto/x509"
+	"encoding/pem"
+	"net"
+	"os"
 	"strings"
 	"testing"
+
+	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/tym83/gachinetes/pkg/tape"
 )
@@ -54,5 +60,22 @@ func TestSummarize(t *testing.T) {
 		if !strings.Contains(text, want) {
 			t.Errorf("missing %q in\n%s", want, text)
 		}
+	}
+}
+
+func TestMakePKI(t *testing.T) {
+	dir := t.TempDir()
+	if err := makePKI(dir+"/pki", dir+"/kube", 23004); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := clientcmd.BuildConfigFromFlags("", dir+"/kube/super-admin.conf")
+	if err != nil || cfg.Host != "https://127.0.0.1:23004" {
+		t.Fatalf("kubeconfig: %v %v", cfg, err)
+	}
+	raw, _ := os.ReadFile(dir + "/pki/apiserver.crt")
+	block, _ := pem.Decode(raw)
+	c, err := x509.ParseCertificate(block.Bytes)
+	if err != nil || len(c.IPAddresses) == 0 || !c.IPAddresses[0].Equal(net.ParseIP("127.0.0.1")) {
+		t.Fatalf("apiserver certificate: %v", err)
 	}
 }

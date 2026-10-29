@@ -63,7 +63,7 @@ check "three pods would come" bash -c "[ \$(grep -c '+ Pod dream/big-' $R/fantas
 check "two would land on nodes" bash -c "[ \$(grep -E '\\+ Pod dream/big-.* → n[12]' $R/fantasy-1.txt | wc -l) -eq 2 ]"
 check "one would find no place" bash -c "grep -A3 'Would find no place (1)' $R/fantasy-1.txt | grep -q 'Pod dream/big-'"
 check "the real cluster did not change" bash -c "! kubectl -n dream get deployment big"
-check "the fantasy stopped" bash -c "! pgrep -f 'kuberoot-store --name fantasy'"
+check "the fantasy stopped" bash -c "! pgrep -f '^/work/bin/kuberoot-store --name fantasy'"
 
 echo "== a fantasy from the past"
 before=$(kubectl get --raw /apis/tape.gachinetes.dev/v1/info | grep -o '"current":[0-9]*' | cut -d: -f2)

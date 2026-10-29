@@ -280,21 +280,9 @@ func (c *ControlPlane) StartStore(ctx context.Context) error {
 // controllers, the scheduler and kwok, and waits until the API answers.
 func (c *ControlPlane) StartControlPlane(ctx context.Context) error {
 	pki, kube := filepath.Join(c.Work, "pki"), filepath.Join(c.Work, "kube")
-	api := fmt.Sprintf("127.0.0.1:%d", c.port(4))
 	if _, err := os.Stat(filepath.Join(pki, "ca.crt")); err != nil {
-		for _, phase := range [][]string{
-			{"init", "phase", "certs", "ca", "--cert-dir", pki},
-			{"init", "phase", "certs", "front-proxy-ca", "--cert-dir", pki},
-			{"init", "phase", "certs", "front-proxy-client", "--cert-dir", pki},
-			{"init", "phase", "certs", "sa", "--cert-dir", pki},
-			{"init", "phase", "certs", "apiserver", "--cert-dir", pki, "--apiserver-advertise-address", "127.0.0.1"},
-			{"init", "phase", "kubeconfig", "super-admin", "--cert-dir", pki, "--kubeconfig-dir", kube, "--control-plane-endpoint", api},
-			{"init", "phase", "kubeconfig", "controller-manager", "--cert-dir", pki, "--kubeconfig-dir", kube, "--control-plane-endpoint", api},
-			{"init", "phase", "kubeconfig", "scheduler", "--cert-dir", pki, "--kubeconfig-dir", kube, "--control-plane-endpoint", api},
-		} {
-			if out, err := exec.CommandContext(ctx, filepath.Join(c.Bin, "kubeadm"), phase...).CombinedOutput(); err != nil {
-				return fmt.Errorf("kubeadm %s: %v: %s", strings.Join(phase[:4], " "), err, out)
-			}
+		if err := makePKI(pki, kube, c.port(4)); err != nil {
+			return fmt.Errorf("certificates: %w", err)
 		}
 	}
 	p := func(f string) string { return filepath.Join(pki, f) }
