@@ -91,6 +91,8 @@ function syncTimeline() {
   }
 }
 
+function retentionCut(e) { return /knows no revision|older than the tape|Requested Range/i.test(e.message); }
+
 async function render() {
   if (state.busy) { state.again = true; return; }
   state.busy = true;
@@ -116,21 +118,21 @@ async function render() {
     }
     syncTimeline();
     drawFloor(now.objects.concat(ghosts), later);
-    if (state.last != null && state.last !== now.revision) await chatBetween(state.last, now.revision);
+    if (state.last != null && state.last !== now.revision) {
+      // The chat may be behind a tape cut by its retention since: it
+      // starts again from here, and the position stays where it is.
+      try { await chatBetween(state.last, now.revision); } catch (e) { if (!retentionCut(e)) throw e; }
+    }
     state.last = now.revision;
     say("");
   } catch (e) {
     // The tape may have been cut since it was last asked about (its
     // retention): the position moves to its new start, and a running
     // tape runs on from there.
-    if (/knows no revision|older than the tape|Requested Range/i.test(e.message)) {
+    if (retentionCut(e) && state.at != null) {
       await refreshInfo();
-      // Live, only the chat was behind: it starts again from now.
-      state.last = null;
-      if (state.at != null) {
-        state.at = Math.ceil(tapeStart() / 1000) * 1000;
-        say("The tape was cut by its retention: it starts at " + hms(tapeStart()) + " now.");
-      }
+      state.at = Math.ceil(tapeStart() / 1000) * 1000;
+      say("The tape was cut by its retention: it starts at " + hms(tapeStart()) + " now.");
       state.again = true;
       return;
     }
