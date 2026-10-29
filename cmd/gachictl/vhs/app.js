@@ -82,11 +82,30 @@ async function render() {
     state.last = now.revision;
     say("");
   } catch (e) {
+    // The tape may have been cut since it was last asked about.
+    if (/knows no revision|older than the tape|Requested Range/i.test(e.message) && state.at != null) {
+      await refreshInfo();
+      if (state.at < state.info.fromTime) { stop(); seek(state.info.fromTime); return; }
+    }
     say("Oh shit, I'm sorry: " + e.message);
   }
 }
 
+// What the cluster runs for itself: hidden unless asked for.
+const systemKinds = new Set(["APIService", "Event", "Lease", "Endpoints", "EndpointSlice", "FlowSchema",
+  "PriorityLevelConfiguration", "PriorityClass", "ValidatingAdmissionPolicy", "ValidatingAdmissionPolicyBinding",
+  "RangeAllocation", "IPAddress", "ServiceCIDR", "ClusterTrustBundle"]);
+// The API server's own bookkeeping, stored beside the objects.
+const systemKeys = ["/registry/masterleases/", "/registry/peerserverleases/", "/registry/ranges/"];
+function isSystem(o) {
+  const k = kindOf(o), n = nameOf(o), ns = nsOf(o);
+  return systemKinds.has(k) || systemKeys.some((p) => (o.key || "").startsWith(p)) || ns.startsWith("kube-") || (k === "Namespace" && n.startsWith("kube-")) ||
+    n.startsWith("system:") || n === "kube-root-ca.crt" || (k === "ServiceAccount" && n === "default") ||
+    (k === "Namespace" && (n === "default" || n === "gachinetes"));
+}
+
 function drawFloor(objects, later) {
+  if (!$("system").checked) objects = objects.filter((o) => !isSystem(o));
   const floor = $("floor");
   floor.replaceChildren();
   const byNs = new Map();
@@ -127,7 +146,8 @@ async function chatBetween(from, to) {
     ...d.removed.map((c) => ["bass", "gachiBASS", "−", c]),
     ...d.changed.map((c) => ["gasm", "gachiGASM", "~", c]),
   ];
-  for (const [cls, emote, sign, c] of lines.slice(0, 40)) {
+  const shown = lines.filter((l) => $("system").checked || !isSystem(l[3].to || l[3].from));
+  for (const [cls, emote, sign, c] of shown.slice(0, 40)) {
     const o = c.to || c.from;
     const text = `${sign} ${kindOf(o)} ${nsOf(o) ? nsOf(o) + "/" : ""}${nameOf(o)}`;
     const li = document.createElement("li");
@@ -181,7 +201,7 @@ async function drawGraveyard() {
     return;
   }
   if (!graves.length) grave.textContent = "Nobody here. Everyone is still lifting.";
-  for (const g of graves) {
+  for (const g of graves.filter((g) => $("system").checked || !isSystem(g))) {
     const row = document.createElement("div");
     row.className = "grave";
     const who = document.createElement("span");
@@ -240,7 +260,9 @@ function seek(ms) {
   const i = state.info;
   const now = Date.now();
   if (ms >= now - 1000) { state.at = null; stop(); }
-  else state.at = Math.max(i && i.fromTime ? i.fromTime : ms, ms);
+  // Moments are whole seconds: the first the tape can answer for is the
+  // one after it starts.
+  else state.at = Math.max(i && i.fromTime ? Math.ceil(i.fromTime / 1000) * 1000 : ms, ms);
   render();
 }
 function step(delta) { seek((state.at == null ? Date.now() : state.at) + delta); }
@@ -268,7 +290,7 @@ $("timeline").addEventListener("change", (e) => {
   const now = Date.now();
   seek(i.fromTime + ((now - i.fromTime) * e.target.value) / 1000);
 });
-for (const id of ["ns", "kind"]) $(id).addEventListener("change", () => { render(); drawGraveyard(); });
+for (const id of ["ns", "kind", "system"]) $(id).addEventListener("change", () => { render(); drawGraveyard(); });
 document.querySelector(".tabs").addEventListener("click", (e) => {
   const tab = e.target.dataset.tab;
   if (!tab) return;

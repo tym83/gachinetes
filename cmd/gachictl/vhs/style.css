@@ -149,3 +149,4 @@ dialog::backdrop { background: #000a; }
   .tracking, #mode { animation: none; }
   .dm { display: none; }
 }
+#r-body ul { list-style: none; padding-left: 0; }
