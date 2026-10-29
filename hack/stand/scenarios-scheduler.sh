@@ -117,8 +117,19 @@ spec: {monthly: 100}
 YAML
 check "the referee prices pods once there is a budget" waitfor 20 bash -c \
   "kubectl get validatingwebhookconfiguration gachinetes-belts -o jsonpath='{.webhooks[*].name}' | grep -q bucks"
-kubectl -n cheap create deployment spend --image=nginx --replicas=3 >/dev/null
-kubectl -n cheap set resources deployment spend --requests=cpu=1 >/dev/null
+kubectl apply -f - >/dev/null <<'YAML'
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: spend, namespace: cheap}
+spec:
+  replicas: 3
+  selector: {matchLabels: {app: spend}}
+  template:
+    metadata: {labels: {app: spend}}
+    spec:
+      tolerations: [{operator: Exists}]
+      containers: [{name: c, image: nginx, resources: {requests: {cpu: "1"}}}]
+YAML
 check "three replicas fit the budget" waitfor 60 bash -c "[ \$(kubectl -n cheap get pods -o name | wc -l) -eq 3 ]"
 kubectl -n cheap scale deployment spend --replicas=4 >/dev/null
 check "the fourth is refused, and says why" waitfor 60 bash -c \
