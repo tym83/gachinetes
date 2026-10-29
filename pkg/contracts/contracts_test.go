@@ -39,3 +39,15 @@ func TestJudge(t *testing.T) {
 		}
 	}
 }
+
+func TestSafewordLeavesExpiredContracts(t *testing.T) {
+	now := time.Now()
+	c := Contract{Name: "old", Spec: Spec{User: "alice", ClusterRole: "view", Duration: "10m"}, Phase: string(Expired), Epoch: 1}
+	if s, _ := Judge(c, 2, now); s != Expired {
+		t.Fatalf("an expired contract after the safeword: %s", s)
+	}
+	c.Phase = string(Active)
+	if s, _ := Judge(c, 2, now); s != Revoked {
+		t.Fatalf("an active contract after the safeword: %s", s)
+	}
+}
