@@ -51,16 +51,25 @@ if [ "${1:-}" = build ]; then
     go build -trimpath -o \$out/ ./cmd/gachi-tape ./cmd/gachi-referee ./cmd/gachi-fantasy ./cmd/gachi-mover ./cmd/gachictl
     cd scheduler && go build -trimpath -o \$out/gachi-scheduler ./cmd/gachi-scheduler
     ls -la \$out"
-  # CRIU, which Alpine does not package: Debian's, with the libraries it
-  # needs, beside the glibc kuberoot already ships from the same Debian.
-  b sh -c "set -e; command -v criu >/dev/null || { apt-get -qq update && apt-get -qq install -y criu >/dev/null; }
+  # CRIU, which Alpine does not package, built from source: Debian's 3.17
+  # cannot read the vDSO of the kernels kuberoot runs. Its libraries come
+  # along, beside the glibc kuberoot already ships from the same Debian.
+  b sh -c "set -e; v=${CRIU_VERSION:-v4.3}; bin=/work/cache/criu-\$v-${arch}
+    if [ ! -x \$bin ]; then
+      apt-get -qq update && apt-get -qq install -y build-essential pkg-config libprotobuf-dev libprotobuf-c-dev \\
+        protobuf-c-compiler protobuf-compiler python3-protobuf libnl-3-dev libnet1-dev libcap-dev libbsd-dev \\
+        libnftables-dev libgnutls28-dev uuid-dev >/dev/null
+      rm -rf /work/tmp/criu && git clone -q --depth 1 --branch \$v https://github.com/checkpoint-restore/criu /work/tmp/criu
+      make -s -C /work/tmp/criu -j\$(nproc) criu >/dev/null
+      mkdir -p /work/cache && cp /work/tmp/criu/criu/criu \$bin
+    fi
     root=/work/out/${arch}/gachinetes/criu; rm -rf \$root; mkdir -p \$root/usr/sbin
-    cp /usr/sbin/criu \$root/usr/sbin/
-    ldd /usr/sbin/criu | awk '/=> \\//{print \$3}' | while read -r l; do
+    cp \$bin \$root/usr/sbin/criu
+    ldd \$bin | awk '/=> \\//{print \$3}' | while read -r l; do
       case \$(basename \$l) in libc.so.*|libm.so.*|libpthread.so.*|libdl.so.*|librt.so.*|libresolv.so.*) continue;; esac
       mkdir -p \$root\$(dirname \$l); cp -L \$l \$root\$l
     done
-    criu --version; find \$root -type f | sed 's|^|  |'"
+    \$bin --version"
 fi
 
 KUBEROOT_DISTRO=gachinetes KUBEROOT_STORE_LAB=1 "${work}/hack/hetzner.sh" "$@"
