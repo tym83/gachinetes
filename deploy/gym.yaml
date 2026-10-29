@@ -305,3 +305,40 @@ spec:
             properties:
               secret: {type: string}
               serviceAccounts: {type: array, items: {type: string}}
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: trainingplans.gym.gachinetes.dev
+spec:
+  group: gym.gachinetes.dev
+  scope: Namespaced
+  names: {plural: trainingplans, singular: trainingplan, kind: TrainingPlan, categories: [gym]}
+  versions:
+  - name: v1
+    served: true
+    storage: true
+    subresources: {status: {}}
+    additionalPrinterColumns:
+    - {name: Deployment, type: string, jsonPath: .spec.deployment}
+    - {name: CPU, type: string, jsonPath: .status.requests.cpu}
+    - {name: Memory, type: string, jsonPath: .status.requests.memory}
+    - {name: Why, type: string, jsonPath: .status.why.cpu}
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            required: [deployment, container]
+            properties:
+              deployment: {type: string}
+              container: {type: string}
+              cpu: {type: object, properties: {min: {type: string}, max: {type: string}}}
+              memory: {type: object, properties: {min: {type: string}, max: {type: string}}}
+              step: {type: number}
+              rest: {type: string}
+              deloadAfter: {type: string}
+          status:
+            type: object
+            x-kubernetes-preserve-unknown-fields: true

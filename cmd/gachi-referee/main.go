@@ -103,6 +103,12 @@ func main() {
 			g.reconcile(ctx)
 		}
 	}()
+	tr := &trainer{cs: cs, dyn: dyn}
+	go func() {
+		for range time.Tick(30 * time.Second) {
+			tr.run(ctx)
+		}
+	}()
 	announcer := &announcer{cs: cs, dyn: dyn}
 	for range time.Tick(10 * time.Second) {
 		announcer.sync(ctx, ref.Bouts(time.Now()))
