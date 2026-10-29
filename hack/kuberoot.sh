@@ -33,7 +33,7 @@ d="${work}/distros/gachinetes"
 mkdir -p "${d}/addons"
 python3 "${ROOT}/distro/kuberoot/gachinetes/profile.py" "${work}/distros/edge/profile.yaml" > "${d}/profile.yaml"
 cp "${work}"/distros/edge/addons/* "${ROOT}"/distro/kuberoot/gachinetes/addons/* "${d}/addons/"
-cp "${ROOT}/distro/kuberoot/gachinetes/apk" "${ROOT}/distro/kuberoot/gachinetes/extras.sh" "${d}/"
+cp "${ROOT}/distro/kuberoot/gachinetes/extras.sh" "${d}/"
 
 for f in "${work}"/hack/hetzner.sh "${work}"/hack/hetzner/*.yaml; do
   sed -i.bak "s/tenant-kuberoot/${NS}/g" "${f}" && rm "${f}.bak"
@@ -51,6 +51,16 @@ if [ "${1:-}" = build ]; then
     go build -trimpath -o \$out/ ./cmd/gachi-tape ./cmd/gachi-referee ./cmd/gachi-fantasy ./cmd/gachi-mover ./cmd/gachictl
     cd scheduler && go build -trimpath -o \$out/gachi-scheduler ./cmd/gachi-scheduler
     ls -la \$out"
+  # CRIU, which Alpine does not package: Debian's, with the libraries it
+  # needs, beside the glibc kuberoot already ships from the same Debian.
+  b sh -c "set -e; command -v criu >/dev/null || { apt-get -qq update && apt-get -qq install -y criu >/dev/null; }
+    root=/work/out/${arch}/gachinetes/criu; rm -rf \$root; mkdir -p \$root/usr/sbin
+    cp /usr/sbin/criu \$root/usr/sbin/
+    ldd /usr/sbin/criu | awk '/=> \\//{print \$3}' | while read -r l; do
+      case \$(basename \$l) in libc.so.*|libm.so.*|libpthread.so.*|libdl.so.*|librt.so.*|libresolv.so.*) continue;; esac
+      mkdir -p \$root\$(dirname \$l); cp -L \$l \$root\$l
+    done
+    criu --version; find \$root -type f | sed 's|^|  |'"
 fi
 
 KUBEROOT_DISTRO=gachinetes KUBEROOT_STORE_LAB=1 "${work}/hack/hetzner.sh" "$@"
