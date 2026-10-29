@@ -18,6 +18,9 @@ node() { # NAME CPU [KUBECONFIG]
 apiVersion: v1
 kind: Node
 metadata: {name: $1, labels: {kubernetes.io/hostname: $1, type: kwok, gym.gachinetes.dev/stand: addons}}
+spec:
+  # Only this scenario's pods, which tolerate everything, come here.
+  taints: [{key: gym.gachinetes.dev/stand, value: addons, effect: NoSchedule}]
 YAML
   kubectl --kubeconfig "${3:-$KUBECONFIG}" patch node "$1" --subresource=status --type=merge -p "{\"status\":{\"capacity\":{\"cpu\":\"$2\",\"memory\":\"8Gi\",\"pods\":\"110\"},\"allocatable\":{\"cpu\":\"$2\",\"memory\":\"8Gi\",\"pods\":\"110\"}}}" >/dev/null
 }

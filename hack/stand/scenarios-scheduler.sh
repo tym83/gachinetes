@@ -21,6 +21,8 @@ kubectl apply -f - >/dev/null <<YAML
 apiVersion: v1
 kind: Node
 metadata: {name: $n, labels: {kubernetes.io/hostname: $n, type: kwok, gym.gachinetes.dev/stand: scheduler}}
+spec:
+  taints: [{key: gym.gachinetes.dev/stand, value: scheduler, effect: NoSchedule}]
 YAML
 kubectl patch node $n --subresource=status --type=merge -p '{"status":{"capacity":{"cpu":"4","memory":"8Gi","pods":"110"},"allocatable":{"cpu":"4","memory":"8Gi","pods":"110"}}}' >/dev/null
 done

@@ -58,7 +58,7 @@ setsid nohup $W/bin/gachi-referee --kubeconfig $KUBECONFIG --listen $IP:9443 --w
   >>$R/logs/gachi-referee.log 2>&1 </dev/null &
 check "back up, it refuses again" bash -c "waitfor 30 bash -c \"kubectl -n gym patch deployment war --field-manager=argocd -p '{\\\"spec\\\":{\\\"replicas\\\":7}}' 2>&1 | grep -q 'belongs to'\""
 kubectl delete beltpolicy war-replicas >/dev/null
-check "without policies the webhook goes" bash -c "waitfor 20 bash -c '! kubectl get validatingwebhookconfiguration gachinetes-belts'"
+check "without policies the belts' webhook goes" bash -c "waitfor 20 bash -c '! kubectl get validatingwebhookconfiguration gachinetes-belts -o jsonpath={.webhooks[*].name} | grep -q belts'"
 
 echo "== why"
 pod=$(kubectl -n gym get pods -l app=war --sort-by=.metadata.creationTimestamp -o jsonpath='{.items[-1:].metadata.name}')
