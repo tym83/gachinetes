@@ -48,7 +48,7 @@ func rootCommand(a *app) *cobra.Command {
 	root.PersistentFlags().StringVar(&a.tapeURL, "tape-url", "", "the tape service directly, instead of through the API server")
 	root.PersistentFlags().StringVarP(&a.output, "output", "o", "", "yaml or json; a table when empty")
 	root.AddCommand(a.getCmd(), a.rewindCmd(), a.historyCmd(), a.graveyardCmd(), a.undeleteCmd(), a.infoCmd(), a.vhsCmd(),
-		a.boutsCmd(), a.beltsCmd(), a.whyCmd(), a.billCmd(), a.contractCmd(), a.spotCmd(), a.safewordCmd(), a.dungeonCmd())
+		a.boutsCmd(), a.beltsCmd(), a.whyCmd(), a.billCmd(), a.contractCmd(), a.spotCmd(), a.safewordCmd(), a.dungeonCmd(), a.anikiCmd())
 	return root
 }
 

@@ -27,6 +27,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/utils/ptr"
 
+	"github.com/tym83/gachinetes/pkg/aniki"
 	"github.com/tym83/gachinetes/pkg/belts"
 	"github.com/tym83/gachinetes/pkg/bucks"
 )
@@ -135,6 +136,13 @@ func (h *holder) configure(ctx context.Context, ps []belts.Policy, budgets bool)
 		op(del, "", "namespaces", "persistentvolumes"),
 		op(del, "apiextensions.k8s.io", "customresourcedefinitions"),
 	}))
+	// Aniki speaks up, with warnings only, where a namespace asks him to.
+	aniki := hook("aniki."+belts.Group, "/aniki", []admregv1.RuleWithOperations{
+		op(cu, "apps", "deployments", "statefulsets", "daemonsets"),
+		op(cu, "batch", "jobs", "cronjobs"),
+	})
+	aniki.NamespaceSelector = &metav1.LabelSelector{MatchLabels: map[string]string{"gym.gachinetes.dev/aniki": "on"}}
+	want.Webhooks = append(want.Webhooks, aniki)
 	if budgets {
 		want.Webhooks = append(want.Webhooks, hook("bucks."+belts.Group, "/bucks", []admregv1.RuleWithOperations{{
 			Operations: []admregv1.OperationType{admregv1.Create},
@@ -279,6 +287,14 @@ func serveWebhook(addr string, cert tls.Certificate, h *holder) {
 	mux.HandleFunc("POST /bucks", review(h.price))
 	mux.HandleFunc("POST /belts", review(h.review))
 	mux.HandleFunc("POST /gym", review(h.guard.review))
+	mux.HandleFunc("POST /aniki", review(func(req *admissionv1.AdmissionRequest) *admissionv1.AdmissionResponse {
+		resp := &admissionv1.AdmissionResponse{UID: req.UID, Allowed: true}
+		u := &unstructured.Unstructured{}
+		if json.Unmarshal(req.Object.Raw, &u.Object) == nil {
+			resp.Warnings = aniki.Warnings(aniki.Review(u))
+		}
+		return resp
+	}))
 	srv := &http.Server{Addr: addr, Handler: mux, ReadHeaderTimeout: 10 * time.Second,
 		TLSConfig: &tls.Config{Certificates: []tls.Certificate{cert}, MinVersion: tls.VersionTLS12}}
 	log.Fatal(srv.ListenAndServeTLS("", ""))
