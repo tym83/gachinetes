@@ -63,7 +63,10 @@ check "the runtime gives the container what the coach asked" bash -c \
   "k get pod $pod -o jsonpath='{.status.containerStatuses[0].resources.requests.cpu}' | grep -q ."
 peak=$(millicores)
 k exec "$pod" -- touch /tmp/rest
-check "a light time deloads the request" waitfor 420 bash -c "[ \$(millicores) -lt $peak ]"
+# Within the hour it peaked in, the coach keeps the weight: that hour's
+# record holds it (deloading below it is pkg/coach's tests', over hours).
+check "a light time: the hour's record holds the weight" waitfor 180 bash -c \
+  "k get trainingplan lifter -o jsonpath='{.status.why.cpu}' | grep -q 'record of this hour holds' && [ \$(millicores) -ge $peak ]"
 echo "      request now $(millicores)m after $peak m; $(k get trainingplan lifter -o jsonpath='{.status.why.cpu}')"
 check "the personal record is kept" bash -c "k get trainingplan lifter -o jsonpath='{.status.records.cpu.peak}' | grep -q '[1-9]'"
 
