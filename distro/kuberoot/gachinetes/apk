@@ -1,3 +1,5 @@
 # CRIU dumps tmpfs content with tar, compressed with gzip.
 tar
 gzip
+# CRI-O enters pods' network namespaces with nsenter.
+util-linux-misc
