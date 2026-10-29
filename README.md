@@ -46,8 +46,33 @@ a pod that would take its namespace over budget is refused, and
 pods, pushed out by real ones, and images held on the nodes.
 
 **Get your ass back here.** `gachi-mover` moves running pods between nodes
-by checkpoint and restore (CRIU), and brings long pods back from their last
-round when they fail or lose their node.
+by checkpoint and restore (CRIU): a `Migration` checkpoints the pod on its
+node and restores it, memory and all, on another. Pods with a round
+annotation are checkpointed on schedule and come back from their last round
+when they fail or lose their node. Restoring needs CRI-O, which the
+distribution runs.
+
+**Contracts and the safeword.** A `Contract` binds a cluster role to a
+person for a while; only someone who may grant the role, and not the one who
+asks, approves it as their spotter. `gachictl safeword` ends every contract
+at once. Namespaces, CRDs and volumes can be spotted: deleting them takes a
+second person's approval.
+
+**Dungeon, leather, lockers.** `gachictl dungeon` quarantines a pod instead
+of killing it: out of its controller and its Services, kept for a look.
+Leather, a label on a namespace, keeps pods off the host. A `Locker` keeps a
+Secret readable by its own service accounts only.
+
+**The coach.** A `TrainingPlan` resizes a Deployment's pods in place like a
+lifter's program: progressive overload with rest between sets, personal
+records, the week's peaks remembered ahead of time, and deloads when the
+weight is no longer needed.
+
+**Sparring, Aniki, away matches.** A sparring partner kills a pod of a
+Deployment on schedule and ranks services by how fast they stand up again.
+Aniki, in namespaces that ask for him, reviews workloads on admission and
+warns of what will hurt them. An away match plays the pods that find no
+room at home in another cluster, and brings them back when there is room.
 
 ## Running it
 
@@ -62,7 +87,8 @@ On another cluster: `deploy/` has the gym's resources and the referee; the
 tape needs a store that keeps its history.
 
 `hack/stand/` brings up a control plane in one pod and runs every scenario
-against it.
+against it; `hack/vm/` runs live migration, rounds and the coach on a
+cluster of kuberoot VMs.
 
 ## Status
 
