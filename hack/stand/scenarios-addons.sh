@@ -89,7 +89,7 @@ node away-1 8 $AWAY
 check "its node is Ready" waitfor 60 bash -c "kubectl --kubeconfig $AWAY get node away-1 | grep -q ' Ready'"
 mkns team
 kubectl -n team create secret generic away --from-file=kubeconfig=$AWAY >/dev/null
-deploy team squad 3 1
+deploy team squad 3 800m
 kubectl apply -f - >/dev/null <<'YAML'
 apiVersion: gym.gachinetes.dev/v1
 kind: AwayMatch
