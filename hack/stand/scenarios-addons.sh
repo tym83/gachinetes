@@ -17,7 +17,7 @@ node() { # NAME CPU [KUBECONFIG]
   kubectl --kubeconfig "${3:-$KUBECONFIG}" apply -f - >/dev/null <<YAML
 apiVersion: v1
 kind: Node
-metadata: {name: $1, labels: {kubernetes.io/hostname: $1, type: kwok}}
+metadata: {name: $1, labels: {kubernetes.io/hostname: $1, type: kwok, gym.gachinetes.dev/stand: addons}}
 YAML
   kubectl --kubeconfig "${3:-$KUBECONFIG}" patch node "$1" --subresource=status --type=merge -p "{\"status\":{\"capacity\":{\"cpu\":\"$2\",\"memory\":\"8Gi\",\"pods\":\"110\"},\"allocatable\":{\"cpu\":\"$2\",\"memory\":\"8Gi\",\"pods\":\"110\"}}}" >/dev/null
 }
@@ -39,6 +39,7 @@ spec:
   template:
     metadata: {labels: {app: $2}}
     spec:
+      nodeSelector: {gym.gachinetes.dev/stand: addons}
       tolerations: [{operator: Exists}]
       containers: [{name: c, image: nginx:1.27, resources: {requests: {cpu: "$4"}}}]
 YAML

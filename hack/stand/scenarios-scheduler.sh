@@ -20,7 +20,7 @@ for n in n-a n-b; do
 kubectl apply -f - >/dev/null <<YAML
 apiVersion: v1
 kind: Node
-metadata: {name: $n, labels: {kubernetes.io/hostname: $n, type: kwok}}
+metadata: {name: $n, labels: {kubernetes.io/hostname: $n, type: kwok, gym.gachinetes.dev/stand: scheduler}}
 YAML
 kubectl patch node $n --subresource=status --type=merge -p '{"status":{"capacity":{"cpu":"4","memory":"8Gi","pods":"110"},"allocatable":{"cpu":"4","memory":"8Gi","pods":"110"}}}' >/dev/null
 done
@@ -53,6 +53,7 @@ metadata:
   labels: {${4:-}}
   annotations: {${5:-}}
 spec:
+  nodeSelector: {gym.gachinetes.dev/stand: scheduler}
   tolerations: [{operator: Exists}]
   containers: [{name: c, image: nginx, resources: {requests: {cpu: "$3"}}}]
 YAML
@@ -112,6 +113,7 @@ kind: ProteinShake
 metadata: {name: warm}
 spec:
   reserve: {count: 2, cpu: "2"}
+  nodeSelector: {gym.gachinetes.dev/stand: scheduler}
   images: [nginx:1.27]
 YAML
 check "the placeholders hold their room" waitfor 60 bash -c \
@@ -152,6 +154,7 @@ spec:
   template:
     metadata: {labels: {app: spend}}
     spec:
+      nodeSelector: {gym.gachinetes.dev/stand: scheduler}
       tolerations: [{operator: Exists}]
       containers: [{name: c, image: nginx, resources: {requests: {cpu: "1"}}}]
 YAML
