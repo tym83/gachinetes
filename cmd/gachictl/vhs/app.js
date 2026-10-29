@@ -123,10 +123,14 @@ async function render() {
     // The tape may have been cut since it was last asked about (its
     // retention): the position moves to its new start, and a running
     // tape runs on from there.
-    if (/knows no revision|older than the tape|Requested Range/i.test(e.message) && state.at != null) {
+    if (/knows no revision|older than the tape|Requested Range/i.test(e.message)) {
       await refreshInfo();
-      state.at = Math.ceil(tapeStart() / 1000) * 1000;
-      say("The tape was cut by its retention: it starts at " + hms(tapeStart()) + " now.");
+      // Live, only the chat was behind: it starts again from now.
+      state.last = null;
+      if (state.at != null) {
+        state.at = Math.ceil(tapeStart() / 1000) * 1000;
+        say("The tape was cut by its retention: it starts at " + hms(tapeStart()) + " now.");
+      }
       state.again = true;
       return;
     }
@@ -229,7 +233,7 @@ async function showHistory(o) {
     for (const v of versions) {
       const li = document.createElement("li");
       const b = document.createElement("button");
-      b.textContent = `${v.deleted ? "† " : ""}rev ${v.revision} · ${v.time ? hms(v.time) : "?"}`;
+      b.textContent = `${v.deleted ? "† " : ""}rev ${v.revision} · ${v.time ? hms(v.time) : "before the tape"}`;
       b.onclick = () => { $("h-body").textContent = v.deleted ? "deleted — rest in peace" : JSON.stringify(v.object, null, 2); };
       li.append(b);
       $("h-list").append(li);
