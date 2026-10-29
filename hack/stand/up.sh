@@ -54,6 +54,11 @@ run kube-controller-manager --kubeconfig=$R/kube/controller-manager.conf \
   --cluster-signing-cert-file=$R/pki/ca.crt --cluster-signing-key-file=$R/pki/ca.key \
   --use-service-account-credentials --leader-elect=false
 run gachi-tape --kubeconfig $R/kube/super-admin.conf --listen $IP:9282
+kubectl --kubeconfig $R/kube/super-admin.conf apply -f $W/src/gachinetes/deploy/gym.yaml
+kubectl --kubeconfig $R/kube/super-admin.conf wait --for condition=Established crd/bouts.gym.gachinetes.dev crd/beltpolicies.gym.gachinetes.dev
+# A short window, so that a bout is over within a scenario.
+run gachi-referee --kubeconfig $R/kube/super-admin.conf --listen $IP:9443 \
+  --webhook-url https://$IP:9443/belts --window 60s
 
 # The aggregated API: the stand has no nodes, so the Service's endpoint is
 # the pod itself, which the API server reaches directly.
