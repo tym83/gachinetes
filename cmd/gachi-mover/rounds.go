@@ -120,6 +120,18 @@ func (c *Controller) takeRound(ctx context.Context, p *corev1.Pod, every time.Du
 	if last, err := c.loadRound(ctx, name); err == nil && time.Since(last.At) < every {
 		return
 	}
+	// A round that failed is tried again a round later, not at once.
+	if t, ok := c.failedRound[name]; ok && time.Since(t) < every {
+		return
+	}
+	failed := true
+	defer func() {
+		if failed {
+			c.failedRound[name] = time.Now()
+		} else {
+			delete(c.failedRound, name)
+		}
+	}()
 	spare, err := c.otherNode(ctx, p.Spec.NodeName)
 	if err != nil {
 		log.Printf("round of %s/%s: %v", p.Namespace, p.Name, err)
@@ -158,6 +170,7 @@ func (c *Controller) takeRound(ctx context.Context, p *corev1.Pod, every time.Du
 		log.Printf("round of %s/%s: %v", p.Namespace, p.Name, err)
 		return
 	}
+	failed = false
 	log.Printf("♂ round of %s/%s: held on %s (%s)", p.Namespace, p.Name, spare, time.Since(now).Round(time.Millisecond))
 }
 

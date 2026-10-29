@@ -5,3 +5,8 @@ for b in gachi-tape gachi-referee gachi-scheduler gachi-fantasy gachi-mover gach
 done
 # CRIU, Debian's, with its libraries (hack/kuberoot.sh).
 cp -r "$OUT/gachinetes/criu/." "$r/"
+# CRIU locks the network with nftables: the node has no iptables. runc
+# reads runc.conf, CRIU itself default.conf.
+mkdir -p "$r/etc/criu"
+printf 'network-lock nftables\n' > "$r/etc/criu/default.conf"
+printf 'network-lock nftables\n' > "$r/etc/criu/runc.conf"

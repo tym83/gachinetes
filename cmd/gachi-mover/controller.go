@@ -35,6 +35,8 @@ type Controller struct {
 	namespace string
 	agentPort string
 	http      *http.Client
+	// failedRound: when a pod's round last failed, to wait before the next.
+	failedRound map[string]time.Time
 }
 
 func NewController(cfg *rest.Config, cs kubernetes.Interface, namespace, agentPort string) (*Controller, error) {
@@ -46,7 +48,7 @@ func NewController(cfg *rest.Config, cs kubernetes.Interface, namespace, agentPo
 	// stranger out is the agent asking the API server about our token.
 	tr := &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true, MinVersion: tls.VersionTLS12}} //nolint:gosec
 	return &Controller{cs: cs, dyn: dyn, namespace: namespace, agentPort: agentPort,
-		http: &http.Client{Transport: tr, Timeout: 30 * time.Minute}}, nil
+		http: &http.Client{Transport: tr, Timeout: 30 * time.Minute}, failedRound: map[string]time.Time{}}, nil
 }
 
 func (c *Controller) Run(ctx context.Context) {
