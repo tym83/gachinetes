@@ -258,40 +258,44 @@ func (a *app) causeOf(ctx context.Context, owner *unstructured.Unstructured, at 
 }
 
 // causeIn finds, in an owner's history, its last write at or before at
-// (a second of slack for clocks), and tells what it changed and who wrote
-// it.
+// (a second of slack for clocks) that changed more than its status, and
+// tells what it changed and who wrote it. Controllers write status right
+// after a change; those writes are passed over.
 func causeIn(history []tape.Object, at time.Time) string {
 	cut := at.Add(time.Second).UnixMilli()
-	i := -1
+	last := -1
 	for j, h := range history {
 		if h.Time != 0 && h.Time <= cut && !h.Deleted {
-			i = j
+			last = j
 		}
 	}
-	if i <= 0 || history[i-1].Object == nil || history[i].Object == nil {
-		return ""
-	}
-	old := &unstructured.Unstructured{Object: history[i-1].Object}
-	new := &unstructured.Unstructured{Object: history[i].Object}
-	var paths []string
-	for _, p := range wrestling.Changed(old.Object, new.Object) {
-		if !strings.HasPrefix(p, "status.") && !strings.HasPrefix(p, "metadata.annotations.deployment.kubernetes.io") {
-			paths = append(paths, p)
+	for i := last; i > 0; i-- {
+		if history[i-1].Object == nil || history[i].Object == nil {
+			return ""
 		}
+		old := &unstructured.Unstructured{Object: history[i-1].Object}
+		new := &unstructured.Unstructured{Object: history[i].Object}
+		var paths []string
+		for _, p := range wrestling.Changed(old.Object, new.Object) {
+			if p != "status" && !strings.HasPrefix(p, "status.") && !strings.HasPrefix(p, "metadata.annotations.deployment.kubernetes.io") {
+				paths = append(paths, p)
+			}
+		}
+		if len(paths) == 0 {
+			continue
+		}
+		if len(paths) > 3 {
+			paths = append(paths[:3], fmt.Sprintf("and %d more", len(paths)-3))
+		}
+		writers := wrestling.Writers(old, new)
+		by := ""
+		if len(writers) > 0 {
+			by = " by " + strings.Join(writers, ", ")
+		}
+		return fmt.Sprintf("%s changed%s at %s (revision %d)", strings.Join(paths, ", "), by,
+			time.UnixMilli(history[i].Time).Format(time.TimeOnly), history[i].Revision)
 	}
-	if len(paths) == 0 {
-		return ""
-	}
-	if len(paths) > 3 {
-		paths = append(paths[:3], fmt.Sprintf("and %d more", len(paths)-3))
-	}
-	writers := wrestling.Writers(old, new)
-	by := ""
-	if len(writers) > 0 {
-		by = " by " + strings.Join(writers, ", ")
-	}
-	return fmt.Sprintf("%s changed%s at %s (revision %d)", strings.Join(paths, ", "), by,
-		time.UnixMilli(history[i].Time).Format(time.TimeOnly), history[i].Revision)
+	return ""
 }
 
 func describeRef(u *unstructured.Unstructured) string {
@@ -304,6 +308,9 @@ func describeRef(u *unstructured.Unstructured) string {
 func headline(u *unstructured.Unstructured, problems []string) string {
 	if phase, ok, _ := unstructured.NestedString(u.Object, "status", "phase"); ok {
 		if len(problems) == 0 {
+			if phase == "Pending" {
+				return "is Pending, and nothing says why: is a scheduler running?"
+			}
 			return "is " + phase + ". Nothing to be sorry for."
 		}
 		return "is " + phase + "."

@@ -46,7 +46,9 @@ func TestCauseInHistory(t *testing.T) {
 		u.SetManagedFields([]metav1.ManagedFieldsEntry{{Manager: manager, Operation: "Update", Time: &metav1.Time{Time: at.Add(time.Duration(sec) * time.Second)}}})
 		return tape.Object{Revision: rev, Time: at.Add(time.Duration(sec) * time.Second).UnixMilli(), Object: u.Object}
 	}
-	history := []tape.Object{ver(10, -60, "nginx:1", "kubectl-client-side-apply"), ver(20, -1, "nginx:2", "kubectl-edit"), ver(30, 60, "nginx:3", "argocd")}
+	status := ver(21, 0, "nginx:2", "kubectl-edit")
+	status.Object["status"] = map[string]any{"observedGeneration": int64(2)}
+	history := []tape.Object{ver(10, -60, "nginx:1", "kubectl-client-side-apply"), ver(20, -1, "nginx:2", "kubectl-edit"), status, ver(30, 60, "nginx:3", "argocd")}
 	got := causeIn(history, at)
 	if !strings.Contains(got, "spec.template.spec.image changed by kubectl-edit") || !strings.Contains(got, "revision 20") {
 		t.Fatalf("cause: %q", got)

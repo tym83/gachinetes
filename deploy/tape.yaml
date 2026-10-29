@@ -128,5 +128,5 @@ metadata:
   name: gachinetes:dungeon-master
 rules:
 - apiGroups: [tape.gachinetes.dev]
-  resources: [info, objects, history, graveyard, diff, secrets]
+  resources: [info, objects, history, graveyard, diff, secrets, raw]
   verbs: [get, list]

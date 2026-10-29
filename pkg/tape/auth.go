@@ -110,7 +110,8 @@ func Guard(rh RequestHeader, cs kubernetes.Interface, next http.Handler) http.Ha
 		if resource != "" {
 			need = append(need, resource)
 		}
-		if r.URL.Query().Get("reveal") == "1" {
+		// Raw values hold Secrets as they are stored.
+		if r.URL.Query().Get("reveal") == "1" || resource == "raw" {
 			need = append(need, "secrets")
 		}
 		for _, res := range need {
@@ -145,7 +146,7 @@ func may(ctx context.Context, cs kubernetes.Interface, user string, groups []str
 func Discovery() http.Handler {
 	mux := http.NewServeMux()
 	resources := []metav1.APIResource{}
-	for _, r := range []string{"info", "objects", "history", "graveyard", "diff", "secrets"} {
+	for _, r := range []string{"info", "objects", "history", "graveyard", "diff", "secrets", "raw"} {
 		resources = append(resources, metav1.APIResource{Name: r, Kind: "Tape", Verbs: metav1.Verbs{"get"}})
 	}
 	gv := metav1.GroupVersionForDiscovery{GroupVersion: Group + "/" + Version, Version: Version}

@@ -205,6 +205,7 @@ func ParsePoint(v string) (Point, error) {
 //	GET history?key=K
 //	GET graveyard?prefix=P
 //	GET diff?prefix=P&from=REV|RFC3339&to=REV|RFC3339
+//	GET raw?prefix=P&at=REV|RFC3339 (the stored values, for fantasies)
 //
 // namespace, kind and name narrow objects, graveyard and diff down.
 // Secrets come with their data emptied unless reveal=1.
@@ -258,6 +259,16 @@ func Handler(s *Store) http.Handler {
 	mux.HandleFunc("GET "+Prefix+"/graveyard", func(w http.ResponseWriter, r *http.Request) {
 		out, err := Graves(r.Context(), s, prefixOf(r), filter(r))
 		reply(w, out, err)
+	})
+	// The stored values themselves, for seeding a fantasy: everything a
+	// store held at a point, Secrets included.
+	mux.HandleFunc("GET "+Prefix+"/raw", func(w http.ResponseWriter, r *http.Request) {
+		p, ok := point(w, r.URL.Query().Get("at"))
+		if !ok {
+			return
+		}
+		res, err := s.Range(r.Context(), prefixOf(r), p)
+		reply(w, res, err)
 	})
 	mux.HandleFunc("GET "+Prefix+"/diff", func(w http.ResponseWriter, r *http.Request) {
 		from, ok := point(w, r.URL.Query().Get("from"))
