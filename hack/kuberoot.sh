@@ -33,7 +33,7 @@ d="${work}/distros/gachinetes"
 mkdir -p "${d}/addons"
 python3 "${ROOT}/distro/kuberoot/gachinetes/profile.py" "${work}/distros/edge/profile.yaml" > "${d}/profile.yaml"
 cp "${work}"/distros/edge/addons/* "${ROOT}"/distro/kuberoot/gachinetes/addons/* "${d}/addons/"
-cp "${ROOT}/distro/kuberoot/gachinetes/extras.sh" "${d}/"
+cp "${ROOT}/distro/kuberoot/gachinetes/extras.sh" "${ROOT}/distro/kuberoot/gachinetes/kernel.config" "${d}/"
 
 for f in "${work}"/hack/hetzner.sh "${work}"/hack/hetzner/*.yaml; do
   sed -i.bak "s/tenant-kuberoot/${NS}/g" "${f}" && rm "${f}.bak"

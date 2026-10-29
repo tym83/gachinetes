@@ -73,8 +73,12 @@ func (c *Controller) setStatus(ctx context.Context, m *unstructured.Unstructured
 		st[k] = v
 	}
 	m.Object["status"] = st
-	if _, err := c.dyn.Resource(migrationsGVR).Namespace(m.GetNamespace()).UpdateStatus(ctx, m, metav1.UpdateOptions{FieldManager: "gachi-mover"}); err != nil {
+	updated, err := c.dyn.Resource(migrationsGVR).Namespace(m.GetNamespace()).UpdateStatus(ctx, m, metav1.UpdateOptions{FieldManager: "gachi-mover"})
+	if err != nil {
 		log.Printf("migration %s/%s: %v", m.GetNamespace(), m.GetName(), err)
+	} else {
+		// Later updates of this carrying out build on this one.
+		m.SetResourceVersion(updated.GetResourceVersion())
 	}
 	log.Printf("migration %s/%s: %s %s", m.GetNamespace(), m.GetName(), phase, msg)
 }
