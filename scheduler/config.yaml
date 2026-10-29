@@ -1,0 +1,15 @@
+# The gym's rules on top of the default profile.
+apiVersion: kubescheduler.config.k8s.io/v1
+kind: KubeSchedulerConfiguration
+leaderElection: {leaderElect: false}
+profiles:
+- schedulerName: default-scheduler
+  plugins:
+    preFilter:
+      enabled: [{name: TagTeam}]
+    filter:
+      enabled: [{name: WeightClass}]
+    permit:
+      enabled: [{name: TagTeam}]
+    score:
+      enabled: [{name: BoyNextDoor, weight: 5}]

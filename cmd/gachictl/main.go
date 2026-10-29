@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
@@ -29,7 +30,14 @@ type app struct {
 }
 
 func main() {
-	a := &app{flags: genericclioptions.NewConfigFlags(true)}
+	root := rootCommand(&app{flags: genericclioptions.NewConfigFlags(true)})
+	if err := root.Execute(); err != nil {
+		fmt.Fprintln(os.Stderr, "Oh shit, I'm sorry:", err)
+		os.Exit(1)
+	}
+}
+
+func rootCommand(a *app) *cobra.Command {
 	root := &cobra.Command{
 		Use:           "gachictl",
 		Short:         "♂ Gachinetes ♂: rewind, undelete and the rest of the gym",
@@ -39,11 +47,9 @@ func main() {
 	a.flags.AddFlags(root.PersistentFlags())
 	root.PersistentFlags().StringVar(&a.tapeURL, "tape-url", "", "the tape service directly, instead of through the API server")
 	root.PersistentFlags().StringVarP(&a.output, "output", "o", "", "yaml or json; a table when empty")
-	root.AddCommand(a.getCmd(), a.rewindCmd(), a.historyCmd(), a.graveyardCmd(), a.undeleteCmd(), a.infoCmd())
-	if err := root.Execute(); err != nil {
-		fmt.Fprintln(os.Stderr, "Oh shit, I'm sorry:", err)
-		os.Exit(1)
-	}
+	root.AddCommand(a.getCmd(), a.rewindCmd(), a.historyCmd(), a.graveyardCmd(), a.undeleteCmd(), a.infoCmd(), a.vhsCmd(),
+		a.boutsCmd(), a.beltsCmd(), a.whyCmd(), a.billCmd(), a.contractCmd(), a.spotCmd(), a.safewordCmd(), a.dungeonCmd(), a.anikiCmd())
+	return root
 }
 
 // call asks the tape: an aggregated API of the cluster, or, with
@@ -105,25 +111,30 @@ func (a *app) target(args []string, allNamespaces bool) (target, error) {
 		name = args[1]
 	}
 	t.name = name
-	kind, err := a.kindOf(res)
+	kind, namespaced, err := a.kindOf(res)
 	if err != nil {
 		return t, err
 	}
 	t.kind = kind
-	if kind == "Namespace" {
+	switch {
+	case kind == "Namespace":
 		t.namespace = name
+	case !namespaced:
+		t.namespace = ""
 	}
 	return t, nil
 }
 
-func (a *app) kindOf(res string) (string, error) {
+// kindOf resolves what the user typed to a kind, and whether objects of
+// it live in a namespace.
+func (a *app) kindOf(res string) (string, bool, error) {
 	if a.tapeURL != "" {
 		// No API server to ask: take a kind as typed.
-		return res, nil
+		return res, true, nil
 	}
 	m, err := a.flags.ToRESTMapper()
 	if err != nil {
-		return "", err
+		return "", false, err
 	}
 	gvr, _ := schema.ParseResourceArg(res)
 	if gvr == nil {
@@ -132,12 +143,17 @@ func (a *app) kindOf(res string) (string, error) {
 	}
 	gvk, err := m.KindFor(*gvr)
 	if err != nil {
-		return "", err
+		return "", false, err
 	}
+	mapping, err := m.RESTMapping(gvk.GroupKind(), gvk.Version)
+	if err != nil {
+		return "", false, err
+	}
+	namespaced := mapping.Scope.Name() == meta.RESTScopeNameNamespace
 	if gvk.Group != "" {
-		return gvk.Kind + "." + gvk.Group, nil
+		return gvk.Kind + "." + gvk.Group, namespaced, nil
 	}
-	return gvk.Kind, nil
+	return gvk.Kind, namespaced, nil
 }
 
 func (t target) query(q url.Values) url.Values {
@@ -194,7 +210,7 @@ func (a *app) getCmd() *cobra.Command {
 
 func (a *app) rewindCmd() *cobra.Command {
 	var to string
-	var all bool
+	var all, noise bool
 	c := &cobra.Command{
 		Use:   "rewind [KIND[/NAME]] --to TIME|REVISION",
 		Short: "◀◀ What changed between a moment and now",
@@ -228,6 +244,10 @@ func (a *app) rewindCmd() *cobra.Command {
 						o = ch.From
 					}
 					kind, ns, name := describe(*o)
+					// Events and leases come and go all the time: noise here.
+					if !noise && (kind == "Event" || kind == "Lease") {
+						continue
+					}
 					fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", set.mark, kind, ns, name)
 				}
 			}
@@ -236,6 +256,7 @@ func (a *app) rewindCmd() *cobra.Command {
 	}
 	c.Flags().StringVar(&to, "to", "", "a time (RFC 3339, or a duration ago such as 15m) or a revision")
 	c.Flags().BoolVarP(&all, "all-namespaces", "A", false, "every namespace")
+	c.Flags().BoolVar(&noise, "events", false, "show events and leases too")
 	_ = c.MarkFlagRequired("to")
 	return c
 }
@@ -344,7 +365,7 @@ func (a *app) infoCmd() *cobra.Command {
 			}
 			fmt.Printf("TAPE  revisions %d … %d  (%s … %s)\n", i.From, i.Current, when(i.FromTime), when(i.CurrentTime))
 			if !i.Started {
-				fmt.Println("Not recording past compaction yet: is the store booted with kuberoot.store-tape?")
+				fmt.Println("No compaction has archived yet: all the history is still in the store itself.")
 			}
 			return nil
 		},
@@ -396,9 +417,11 @@ func table(objs []tape.Object, column string, at func(tape.Object) int64) error 
 	return w.Flush()
 }
 
+// when is a moment on the tape; none is a write older than the tape,
+// whose time the tape no longer keeps.
 func when(ms int64) string {
 	if ms == 0 {
-		return "?"
+		return "before the tape"
 	}
 	t := time.UnixMilli(ms)
 	return fmt.Sprintf("%s (%s ago)", t.Format(time.DateTime), time.Since(t).Round(time.Second))

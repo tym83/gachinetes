@@ -1,0 +1,169 @@
+:root, :root[data-theme="gym"] {
+  /* Gym: a tape of the nineties, played too often. Faded teal shadows with
+     a green cast, washed magenta and cyan, a burnt cream white, low
+     contrast, colour bleeding off every edge. */
+  --bg: #2b3a37;
+  --panel: #34463f;
+  --ink: #e9dcc0;
+  --dim: #9fa58d;
+  --osd: #8fe0d2;
+  --hot: #e07aa8;
+  --add: #a8d68a;
+  --gone: #e88a7a;
+  --chg: #e6c46a;
+  --edge: #4d5f55;
+  --bleed-a: #ff4fa055;
+  --bleed-b: #3fe6ff55;
+  --wash: saturate(.78) contrast(.9) brightness(1.02) sepia(.12);
+  --tile: repeating-linear-gradient(90deg, #ffffff05 0 1px, #0000 1px 3px);
+  --vignette: radial-gradient(ellipse at center, #0000 55%, #0b120f99 100%);
+}
+:root[data-theme="dungeon"] {
+  /* The dungeon: darker than the gym, lit by one red bulb. */
+  --bg: #050203;
+  --panel: #0e0507;
+  --ink: #c9a7a0;
+  --dim: #6e4c48;
+  --osd: #b8241c;
+  --hot: #e0352a;
+  --add: #7f9f5a;
+  --gone: #d0473a;
+  --chg: #b08a2a;
+  --edge: #2a0e10;
+  --bleed-a: #ff1e1e40;
+  --bleed-b: #3a00ff20;
+  --wash: saturate(.65) contrast(1.05) brightness(.82);
+  --tile: radial-gradient(circle at 8px 8px, #1e0709 2px, #0000 3px) 0 0 / 48px 48px;
+  --vignette: radial-gradient(ellipse at 50% 35%, #ff1a0a12 0%, #0000 35%, #000000e6 100%);
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--vignette), var(--tile), var(--bg);
+  background-attachment: fixed;
+  color: var(--ink);
+  font-family: "VT323", ui-monospace, Menlo, monospace;
+  font-size: 20px;
+  line-height: 1.2;
+  min-height: 100vh;
+  padding: 0 16px 24px;
+  overflow-x: hidden;
+}
+button, input, select {
+  font: inherit;
+  color: inherit;
+  background: var(--panel);
+  border: 1px solid var(--edge);
+  padding: 4px 10px;
+  border-radius: 2px;
+}
+button { cursor: pointer; }
+button:hover { border-color: var(--osd); color: var(--osd); }
+button.hot { border-color: var(--hot); color: var(--hot); }
+.dim { color: var(--dim); }
+
+/* The tape itself: scanlines, a tracking band, a little colour bleed. */
+.crt {
+  pointer-events: none;
+  position: fixed; inset: 0; z-index: 50;
+  background: repeating-linear-gradient(to bottom, #0000 0 2px, #0000001f 2px 3px);
+  mix-blend-mode: multiply;
+}
+.tracking {
+  pointer-events: none;
+  position: fixed; left: 0; right: 0; height: 60px; z-index: 51;
+  background: linear-gradient(#fff0, #ffffff14, #fff0);
+  animation: track 7s linear infinite;
+}
+@keyframes track { from { top: -60px; } to { top: 100vh; } }
+/* Colour bleeds off every edge, as on a worn tape. */
+.osd, .deck button, h2, h3, .athlete .n, .where { text-shadow: 1.5px 0 var(--bleed-a), -1.5px 0 var(--bleed-b); }
+
+.osd {
+  position: sticky; top: 0; z-index: 10;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  padding: 12px 0;
+  background: linear-gradient(var(--bg) 70%, #0000);
+  color: var(--osd);
+  font-size: 26px;
+}
+.tc { display: flex; gap: 10px; align-items: baseline; }
+#mode { animation: blink 1.2s steps(2) infinite; }
+:root[data-paused="1"] #mode { animation: none; }
+@keyframes blink { 50% { opacity: .35; } }
+
+.deck { margin: 4px 0 12px; }
+.buttons { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.speed { margin-left: auto; color: var(--dim); }
+#timeline { width: 100%; margin: 12px 0 4px; accent-color: var(--osd); padding: 0; border: 0; background: none; }
+.ends { display: flex; justify-content: space-between; color: var(--dim); font-size: 16px; }
+
+.filters { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 12px; color: var(--dim); }
+.filters input { width: 140px; }
+.tabs { margin-left: auto; display: flex; gap: 6px; }
+.tab.on { border-color: var(--osd); color: var(--osd); }
+
+main { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 16px; }
+@media (max-width: 860px) { main { grid-template-columns: 1fr; } }
+.panel { display: none; }
+.panel.on { display: block; }
+
+.ns { margin-bottom: 18px; }
+.ns h3 { margin: 0 0 6px; font-weight: normal; color: var(--osd); font-size: 22px; }
+.athletes { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; }
+.athlete {
+  text-align: left; background: var(--panel); border: 1px solid var(--edge); padding: 8px 10px;
+  display: flex; flex-direction: column; gap: 2px; min-width: 0;
+}
+.athlete .k { color: var(--dim); font-size: 16px; }
+.athlete .n { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.athlete .m { font-size: 15px; }
+.athlete.gone { border-color: var(--gone); }
+.athlete.gone .m { color: var(--gone); }
+.athlete.chg { border-color: var(--chg); }
+.athlete.chg .m { color: var(--chg); }
+.athlete.add { border-color: var(--add); }
+.athlete.add .m { color: var(--add); }
+
+.grave { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 8px 10px; border-bottom: 1px dashed var(--edge); }
+.grave .who { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.chat { background: var(--panel); border: 1px solid var(--edge); padding: 8px 10px; max-height: 70vh; overflow: auto; }
+.chat h2, dialog h2 { margin: 0 0 8px; font-weight: normal; color: var(--osd); font-size: 24px; }
+#chat { list-style: none; margin: 0; padding: 0; font-size: 17px; }
+#chat li { padding: 3px 0; border-bottom: 1px dotted var(--edge); }
+.emote { display: inline-block; padding: 0 5px; margin-right: 4px; border-radius: 3px; font-size: 14px; color: #000; }
+.emote.hype { background: var(--add); }
+.emote.bass { background: var(--gone); }
+.emote.gasm { background: var(--chg); }
+
+#danmaku { pointer-events: none; position: fixed; inset: 0; z-index: 40; overflow: hidden; }
+.dm { position: absolute; white-space: nowrap; font-size: 26px; color: var(--osd); animation: fly 9s linear forwards; text-shadow: 0 0 4px var(--bg); }
+@keyframes fly { from { transform: translateX(100vw); } to { transform: translateX(-120%); } }
+
+dialog { background: var(--panel); color: var(--ink); border: 1px solid var(--osd); max-width: min(760px, 92vw); width: 100%; }
+dialog::backdrop { background: #000a; }
+#h-list { list-style: none; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+#h-body { max-height: 50vh; overflow: auto; font-size: 15px; white-space: pre-wrap; word-break: break-word; }
+.row { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
+#status { position: fixed; bottom: 8px; left: 16px; right: 16px; color: var(--hot); margin: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .tracking, #mode { animation: none; }
+  .dm { display: none; }
+}
+#r-body ul { list-style: none; padding-left: 0; }
+
+.where { margin-top: 10px; padding: 6px 10px; border: 1px solid var(--osd); color: var(--osd); font-size: 22px; }
+.where.past { border-color: var(--chg); color: var(--chg); }
+.since { color: var(--dim); font-size: 18px; min-height: 1.2em; margin-top: 4px; }
+.legend { color: var(--dim); font-size: 15px; margin: 6px 0 0; }
+.m-gone { color: var(--gone); } .m-chg { color: var(--chg); } .m-later { color: var(--add); }
+.athlete.later { opacity: .45; border-style: dashed; border-color: var(--add); }
+.athlete.later .m { color: var(--add); }
+.buttons button.on { border-color: var(--osd); color: var(--osd); background: color-mix(in srgb, var(--osd) 15%, var(--panel)); }
+
+/* The wash of a worn tape, on what is shown; not on body, where a filter
+   would unpin the fixed scanlines and the flying changes. */
+.osd, .deck, .filters, main, #danmaku { filter: var(--wash); }

@@ -110,7 +110,8 @@ func Guard(rh RequestHeader, cs kubernetes.Interface, next http.Handler) http.Ha
 		if resource != "" {
 			need = append(need, resource)
 		}
-		if r.URL.Query().Get("reveal") == "1" {
+		// Raw values hold Secrets as they are stored.
+		if r.URL.Query().Get("reveal") == "1" || resource == "raw" {
 			need = append(need, "secrets")
 		}
 		for _, res := range need {
@@ -145,7 +146,7 @@ func may(ctx context.Context, cs kubernetes.Interface, user string, groups []str
 func Discovery() http.Handler {
 	mux := http.NewServeMux()
 	resources := []metav1.APIResource{}
-	for _, r := range []string{"info", "objects", "history", "graveyard", "diff", "secrets"} {
+	for _, r := range []string{"info", "objects", "history", "graveyard", "diff", "secrets", "raw"} {
 		resources = append(resources, metav1.APIResource{Name: r, Kind: "Tape", Verbs: metav1.Verbs{"get"}})
 	}
 	gv := metav1.GroupVersionForDiscovery{GroupVersion: Group + "/" + Version, Version: Version}
@@ -153,6 +154,13 @@ func Discovery() http.Handler {
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(v)
 	}
+	// The aggregator asks for OpenAPI; the tape has no typed objects.
+	mux.HandleFunc("GET /openapi/v2", func(w http.ResponseWriter, _ *http.Request) {
+		write(w, map[string]any{"swagger": "2.0", "info": map[string]string{"title": Group, "version": Version}, "paths": map[string]any{}})
+	})
+	mux.HandleFunc("GET /openapi/v3", func(w http.ResponseWriter, _ *http.Request) {
+		write(w, map[string]any{"paths": map[string]any{}})
+	})
 	mux.HandleFunc("GET /apis", func(w http.ResponseWriter, _ *http.Request) {
 		write(w, metav1.APIGroupList{TypeMeta: metav1.TypeMeta{Kind: "APIGroupList", APIVersion: "v1"},
 			Groups: []metav1.APIGroup{{Name: Group, Versions: []metav1.GroupVersionForDiscovery{gv}, PreferredVersion: gv}}})

@@ -1,0 +1,40 @@
+# Leather: hardened pods. In namespaces labeled gym.gachinetes.dev/leather=on,
+# pods may not run privileged, share the host's namespaces or mount its
+# paths. It is a label to put on rather than to take off: platform
+# packages (CNI, storage, monitoring agents) need the host.
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: gachinetes-leather
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules:
+    - apiGroups: [""]
+      apiVersions: [v1]
+      operations: [CREATE, UPDATE]
+      resources: [pods]
+  validations:
+  - expression: >-
+      object.spec.containers.all(c, !has(c.securityContext) || !has(c.securityContext.privileged) || !c.securityContext.privileged) &&
+      (!has(object.spec.initContainers) || object.spec.initContainers.all(c, !has(c.securityContext) || !has(c.securityContext.privileged) || !c.securityContext.privileged))
+    message: "♂ leather: no privileged containers here"
+  - expression: >-
+      !(has(object.spec.hostNetwork) && object.spec.hostNetwork) &&
+      !(has(object.spec.hostPID) && object.spec.hostPID) &&
+      !(has(object.spec.hostIPC) && object.spec.hostIPC)
+    message: "♂ leather: the host's namespaces are not shared here"
+  - expression: >-
+      !has(object.spec.volumes) || object.spec.volumes.all(v, !has(v.hostPath))
+    message: "♂ leather: no host paths here"
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: gachinetes-leather
+spec:
+  policyName: gachinetes-leather
+  validationActions: [Deny]
+  matchResources:
+    namespaceSelector:
+      matchLabels: {gym.gachinetes.dev/leather: "on"}

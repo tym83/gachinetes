@@ -1,0 +1,54 @@
+# gachi-tape: the cluster's tape as the aggregated API tape.gachinetes.dev.
+# Needs control planes booted with kuberoot.datastore=kuberoot-store and
+# kuberoot.store-tape: it reads the store member's tape on 127.0.0.1:2382.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: gachinetes
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gachi-tape
+  namespace: gachinetes
+spec:
+  ports:
+  - port: 443
+    targetPort: 9282
+---
+apiVersion: apiregistration.k8s.io/v1
+kind: APIService
+metadata:
+  name: v1.tape.gachinetes.dev
+spec:
+  group: tape.gachinetes.dev
+  version: v1
+  service:
+    name: gachi-tape
+    namespace: gachinetes
+  # The serving certificate is self-signed at start.
+  insecureSkipTLSVerify: true
+  groupPriorityMinimum: 1000
+  versionPriority: 15
+---
+# Read the tape; Secrets come with their data emptied.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: gachinetes:tape-reader
+rules:
+- apiGroups: [tape.gachinetes.dev]
+  resources: [info, objects, history, graveyard, diff]
+  # The API server asks for list on the paths of an aggregated API, the
+  # tape for get.
+  verbs: [get, list]
+---
+# Read Secrets on the tape too: what undelete needs to bring them back.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: gachinetes:dungeon-master
+rules:
+- apiGroups: [tape.gachinetes.dev]
+  resources: [info, objects, history, graveyard, diff, secrets, raw]
+  verbs: [get, list]
