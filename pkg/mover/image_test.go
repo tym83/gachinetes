@@ -69,7 +69,7 @@ func TestCheckpointImage(t *testing.T) {
 	if !bytes.Contains(m, []byte(CheckpointAnnotation)) || !bytes.Contains(m, []byte(`"nginx"`)) {
 		t.Fatalf("manifest: %s", m)
 	}
-	if ref != "localhost/gachinetes/checkpoint/shop/web/nginx:42" {
+	if ref != "localhost:5001/gachinetes/checkpoint/shop/web/nginx:42" {
 		t.Fatalf("ref: %s", ref)
 	}
 }

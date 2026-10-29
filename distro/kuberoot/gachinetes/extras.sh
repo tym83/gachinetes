@@ -10,3 +10,10 @@ cp -r "$OUT/gachinetes/criu/." "$r/"
 mkdir -p "$r/etc/criu"
 printf 'network-lock nftables\n' > "$r/etc/criu/default.conf"
 printf 'network-lock nftables\n' > "$r/etc/criu/runc.conf"
+# CRI-O, the runtime that restores checkpoints, from its static release.
+CRIO_VERSION=${CRIO_VERSION:-v1.37.2}
+fetch "https://storage.googleapis.com/cri-o/artifacts/cri-o.$ARCH.$CRIO_VERSION.tar.gz" "cri-o-$CRIO_VERSION-$ARCH.tgz"
+crio_tmp=$(mktemp -d)
+tar -xzf "$CACHE/cri-o-$CRIO_VERSION-$ARCH.tgz" -C "$crio_tmp"
+for b in crio conmon pinns crictl; do install -m 0755 "$crio_tmp/cri-o/bin/$b" "$r/usr/bin/$b"; done
+rm -rf "$crio_tmp"

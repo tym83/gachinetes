@@ -1,13 +1,11 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -31,8 +29,8 @@ type Agent struct {
 	cs   kubernetes.Interface
 	node string
 	dir  string
-	// ctr imports images; tests swap it.
-	ctr func(ctx context.Context, archive string) error
+	// registry keeps the checkpoints it takes in, as images.
+	registry *mover.Registry
 }
 
 func (a *Agent) Handler() http.Handler {
@@ -111,60 +109,35 @@ func (a *Agent) removeCheckpoint(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// importCheckpoint takes a checkpoint archive in the body and makes it
-// the image ref, for container, in the runtime's k8s.io namespace.
+// importCheckpoint takes a checkpoint archive in the body and keeps it as
+// the image ref, for container, in the node's checkpoint registry, where
+// the kubelet pulls it from and the runtime restores it.
 func (a *Agent) importCheckpoint(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	ref, container := q.Get("ref"), q.Get("container")
-	if !strings.HasPrefix(ref, "localhost/gachinetes/checkpoint/") || container == "" {
+	if !strings.HasPrefix(ref, mover.RegistryAddr+"/gachinetes/checkpoint/") || container == "" {
 		http.Error(w, "ref and container are needed", http.StatusBadRequest)
 		return
 	}
-	tmp, err := os.MkdirTemp("", "gachi-mover-")
+	if err := os.MkdirAll(a.registry.Dir, 0o700); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	f, err := os.CreateTemp(a.registry.Dir, "incoming-")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	defer os.RemoveAll(tmp)
-	ck := filepath.Join(tmp, "checkpoint.tar")
-	f, err := os.Create(ck)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
+	defer os.Remove(f.Name())
 	if _, err := io.Copy(f, r.Body); err != nil {
 		f.Close()
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 	f.Close()
-	archive := filepath.Join(tmp, "image.tar")
-	out, err := os.Create(archive)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	err = mover.WriteCheckpointImage(ck, ref, container, out)
-	out.Close()
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	ctr := a.ctr
-	if ctr == nil {
-		ctr = importWithCtr
-	}
-	if err := ctr(r.Context(), archive); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+	if err := a.registry.Put(f.Name(), ref, container); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 	log.Printf("imported %s", ref)
-}
-
-func importWithCtr(ctx context.Context, archive string) error {
-	out, err := exec.CommandContext(ctx, "ctr", "-n", "k8s.io", "images", "import", "--no-unpack=false", archive).CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("ctr images import: %v: %s", err, out)
-	}
-	return nil
 }

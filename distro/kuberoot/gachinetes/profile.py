@@ -8,6 +8,24 @@ if "\n  name: edge\n" not in text:
     sys.exit("profile of edge changed: no metadata.name to replace")
 text = text.replace("\n  name: edge\n", "\n  name: gachinetes\n", 1)
 
+# CRI-O in place of containerd: it restores containers from checkpoints,
+# which containerd's CRI does not (gachi-mover).
+if "\nspec:\n" not in text:
+    sys.exit("profile of edge changed: no spec")
+text = text.replace("\nspec:\n", "\nspec:\n  runtime: cri-o\n", 1)
+containerd = """      - name: containerd
+        args: [/usr/bin/containerd, --config, /etc/containerd/config.toml]
+"""
+if text.count(containerd) != 2:
+    sys.exit("profile of edge changed: containerd is not as expected")
+text = text.replace(containerd, """      - name: crio
+        args: [/usr/bin/crio]
+""")
+podnet = "        - --pod-network={{.Net.PodNetwork}}\n"
+if text.count(podnet) != 2:
+    sys.exit("profile of edge changed: kuberoot-node's pod network is not as expected")
+text = text.replace(podnet, podnet + "        - --cni-template=/etc/cni/kuberoot.conflist.tmpl\n")
+
 old = """      - name: kube-scheduler
         after: apiserver
         args:

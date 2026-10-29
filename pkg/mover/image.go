@@ -116,5 +116,5 @@ func blob(d string) string { return "blobs/sha256/" + d[len("sha256:"):] }
 // ImageRef is the name a checkpoint of a pod's container gets on the node
 // it is restored on.
 func ImageRef(namespace, pod, container string, at time.Time) string {
-	return fmt.Sprintf("localhost/gachinetes/checkpoint/%s/%s/%s:%d", namespace, pod, container, at.Unix())
+	return fmt.Sprintf("%s/gachinetes/checkpoint/%s/%s/%s:%d", RegistryAddr, namespace, pod, container, at.Unix())
 }

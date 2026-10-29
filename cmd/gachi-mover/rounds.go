@@ -194,7 +194,7 @@ func (c *Controller) comeBack(ctx context.Context, name string, failed *corev1.P
 	for i := range spec.Containers {
 		if ref, ok := r.Images[spec.Containers[i].Name]; ok {
 			spec.Containers[i].Image = ref
-			spec.Containers[i].ImagePullPolicy = corev1.PullNever
+			spec.Containers[i].ImagePullPolicy = corev1.PullIfNotPresent
 		}
 	}
 	pod := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: r.Pod, Namespace: r.Namespace, Labels: r.Labels,

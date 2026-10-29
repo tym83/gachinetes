@@ -3,12 +3,10 @@ package main
 import (
 	"archive/tar"
 	"bytes"
-	"context"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	authnv1 "k8s.io/api/authentication/v1"
@@ -16,6 +14,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
 	k8stesting "k8s.io/client-go/testing"
+
+	"github.com/tym83/gachinetes/pkg/mover"
 )
 
 func agentFor(t *testing.T, allowed bool) (*Agent, string) {
@@ -28,17 +28,11 @@ func agentFor(t *testing.T, allowed bool) (*Agent, string) {
 		return true, &authzv1.SubjectAccessReview{Status: authzv1.SubjectAccessReviewStatus{Allowed: allowed}}, nil
 	})
 	dir := t.TempDir()
-	return &Agent{cs: cs, node: "n1", dir: dir}, dir
+	return &Agent{cs: cs, node: "n1", dir: dir, registry: &mover.Registry{Dir: filepath.Join(dir, "registry")}}, dir
 }
 
 func TestAgent(t *testing.T) {
 	a, dir := agentFor(t, true)
-	var imported string
-	a.ctr = func(_ context.Context, archive string) error {
-		b, _ := os.ReadFile(archive)
-		imported = string(b)
-		return nil
-	}
 	srv := httptest.NewServer(a.Handler())
 	defer srv.Close()
 	do := func(method, path string, body []byte, token string) (int, string) {
@@ -75,8 +69,11 @@ func TestAgent(t *testing.T) {
 	if code, _ := do("GET", "/checkpoint?path="+dir+"/../x.tar", nil, "t"); code != http.StatusBadRequest {
 		t.Fatalf("out of the directory: %d", code)
 	}
-	if code, body := do("POST", "/import?ref=localhost/gachinetes/checkpoint/shop/web/nginx:1&container=nginx", ck.Bytes(), "t"); code != 200 || !strings.Contains(imported, "index.json") {
+	if code, body := do("POST", "/import?ref=localhost:5001/gachinetes/checkpoint/shop/web/nginx:1&container=nginx", ck.Bytes(), "t"); code != 200 {
 		t.Fatalf("import: %d %s", code, body)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "registry", "manifests", "gachinetes/checkpoint/shop/web/nginx", "1")); err != nil {
+		t.Fatalf("the image is not kept: %v", err)
 	}
 	if code, _ := do("POST", "/import?ref=docker.io/evil:1&container=x", ck.Bytes(), "t"); code != http.StatusBadRequest {
 		t.Fatalf("import under another name: %d", code)

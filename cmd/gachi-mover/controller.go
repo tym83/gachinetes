@@ -161,7 +161,7 @@ func (c *Controller) carryOut(ctx context.Context, m *unstructured.Unstructured)
 	moved.Status = corev1.PodStatus{}
 	for i := range moved.Spec.Containers {
 		moved.Spec.Containers[i].Image = images[moved.Spec.Containers[i].Name]
-		moved.Spec.Containers[i].ImagePullPolicy = corev1.PullNever
+		moved.Spec.Containers[i].ImagePullPolicy = corev1.PullIfNotPresent
 	}
 	if err := c.cs.CoreV1().Pods(ns).Delete(ctx, pod.Name, metav1.DeleteOptions{GracePeriodSeconds: ptr.To(int64(0))}); err != nil {
 		fail("removing the old pod: %v", err)

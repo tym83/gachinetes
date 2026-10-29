@@ -21,6 +21,8 @@ import (
 
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
+
+	"github.com/tym83/gachinetes/pkg/mover"
 )
 
 func main() {
@@ -38,7 +40,13 @@ func main() {
 	cs := kubernetes.NewForConfigOrDie(cfg)
 	ctx := context.Background()
 	if *agent != "" {
-		a := &Agent{cs: cs, node: *node, dir: checkpointDir}
+		a := &Agent{cs: cs, node: *node, dir: checkpointDir, registry: &mover.Registry{Dir: registryDir}}
+		// The node's runtime pulls checkpoints from here, on the loopback
+		// only.
+		go func() {
+			srv := &http.Server{Addr: "127.0.0.1:5001", Handler: a.registry.Handler(), ReadHeaderTimeout: 10 * time.Second}
+			log.Fatal(srv.ListenAndServe())
+		}()
 		go func() {
 			cert, err := selfSigned()
 			if err != nil {
@@ -60,6 +68,9 @@ func main() {
 	}
 	select {}
 }
+
+// registryDir keeps the checkpoint images a node takes in.
+const registryDir = "/var/lib/gachinetes/checkpoints"
 
 func selfSigned() (tls.Certificate, error) {
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
