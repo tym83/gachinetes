@@ -151,7 +151,8 @@ func (c *Controller) takeRound(ctx context.Context, p *corev1.Pod, every time.Du
 	}
 	now := time.Now()
 	r := &round{Namespace: p.Namespace, Pod: p.Name, Node: spare, Every: p.Annotations[RoundAnno],
-		Images: map[string]string{}, At: now, Spec: p.Spec, Labels: p.Labels}
+		Images: map[string]string{}, At: now, Spec: *p.Spec.DeepCopy(), Labels: p.Labels}
+	withBaseImages(&r.Spec, p.Status.ContainerStatuses)
 	for _, ctr := range p.Spec.Containers {
 		path, err := c.checkpoint(ctx, p.Spec.NodeName, p.Namespace, p.Name, ctr.Name)
 		if err != nil {

@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	authnv1 "k8s.io/api/authentication/v1"
@@ -159,6 +160,7 @@ func (c *Controller) carryOut(ctx context.Context, m *unstructured.Unstructured)
 	moved.Annotations["gym.gachinetes.dev/moved-from"] = source
 	moved.Spec.NodeName = target
 	moved.Status = corev1.PodStatus{}
+	withBaseImages(&moved.Spec, pod.Status.ContainerStatuses)
 	for i := range moved.Spec.Containers {
 		moved.Spec.Containers[i].Image = images[moved.Spec.Containers[i].Name]
 		moved.Spec.Containers[i].ImagePullPolicy = corev1.PullIfNotPresent
@@ -277,4 +279,31 @@ func (c *Controller) otherNode(ctx context.Context, from string) (string, error)
 		}
 	}
 	return "", fmt.Errorf("no other Ready node to move to")
+}
+
+// withBaseImages gives a pod to restore its containers' own images as
+// image volumes, mounted nowhere: the runtime restores a checkpoint on top
+// of the image it was taken of, so the kubelet has to pull that image on
+// the new node first, with the pod's pull secrets, without running it.
+// The digest the old node ran is the one asked for; a pod that was moved
+// before has its volumes already.
+func withBaseImages(spec *corev1.PodSpec, statuses []corev1.ContainerStatus) {
+	have := map[string]bool{}
+	for _, v := range spec.Volumes {
+		have[v.Name] = true
+	}
+	for i, ctr := range spec.Containers {
+		name := fmt.Sprintf("gachi-base-%d", i)
+		if have[name] {
+			continue
+		}
+		ref := ctr.Image
+		for _, st := range statuses {
+			if st.Name == ctr.Name && strings.Contains(st.ImageID, "@sha256:") {
+				ref = strings.TrimPrefix(st.ImageID, "docker-pullable://")
+			}
+		}
+		spec.Volumes = append(spec.Volumes, corev1.Volume{Name: name, VolumeSource: corev1.VolumeSource{
+			Image: &corev1.ImageVolumeSource{Reference: ref, PullPolicy: corev1.PullIfNotPresent}}})
+	}
 }
