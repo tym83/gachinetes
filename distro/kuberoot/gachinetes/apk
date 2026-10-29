@@ -1,0 +1,2 @@
+# CRIU dumps tmpfs content with tar.
+tar
