@@ -39,7 +39,7 @@ rules:
   resources: [clusterrolebindings, rolebindings, roles]
   verbs: [create, update, delete, escalate]
 - apiGroups: [gym.gachinetes.dev]
-  resources: [contracts/status, spots/status, trainingplans/status, sparrings/status]
+  resources: [contracts/status, spots/status, trainingplans/status, sparrings/status, awaymatches/status]
   verbs: [update]
 # The coach resizes pods in place; the sparring partner punches them.
 - apiGroups: [""]

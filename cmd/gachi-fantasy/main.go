@@ -52,7 +52,20 @@ func main() {
 	flag.BoolVar(&f.keep, "keep", false, "leave the fantasy running, to look around in it")
 	flag.BoolVar(&f.merge, "merge", false, "then apply the change to the real cluster, unless it wrote the change's objects since the branch")
 	flag.IntVar(&f.base, "port-base", 23000, "the fantasy's ports start here")
+	empty := flag.Bool("empty", false, "start an empty cluster of its own and keep it: a second gym, for away matches")
 	flag.Parse()
+	if *empty {
+		c := &fantasy.ControlPlane{Work: f.work, Bin: f.bin, Base: f.base}
+		ctx := context.Background()
+		if err := c.StartStore(ctx); err != nil {
+			log.Fatal(err)
+		}
+		if err := c.StartControlPlane(ctx); err != nil {
+			log.Fatal(err)
+		}
+		fmt.Println(c.Kubeconfig())
+		select {}
+	}
 	if changes == "" {
 		log.Fatal("-f: a change is needed")
 	}

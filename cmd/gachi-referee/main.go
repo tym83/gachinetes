@@ -109,6 +109,12 @@ func main() {
 			tr.run(ctx)
 		}
 	}()
+	bus := &coachBus{cs: cs, dyn: dyn}
+	go func() {
+		for range time.Tick(5 * time.Second) {
+			bus.run(ctx)
+		}
+	}()
 	sp := &partner{cs: cs, dyn: dyn}
 	go func() {
 		for range time.Tick(2 * time.Second) {
