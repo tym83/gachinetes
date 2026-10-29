@@ -68,7 +68,8 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	h := &holder{cs: cs, dyn: dyn, caBundle: caPEM, url: *webhookURL, namespace: *namespace}
+	g := &guard{cs: cs, dyn: dyn, namespace: *namespace}
+	h := &holder{cs: cs, dyn: dyn, caBundle: caPEM, url: *webhookURL, namespace: *namespace, guard: g}
 	go serveWebhook(*listen, cert, h)
 
 	factory := dynamicinformer.NewDynamicSharedInformerFactory(dyn, 0)
@@ -97,6 +98,11 @@ func main() {
 	k.reconcile(ctx)
 	log.Printf("♂ gachi-referee: watching, window %s, %d switches make a bout", *window, *switches)
 
+	go func() {
+		for range time.Tick(3 * time.Second) {
+			g.reconcile(ctx)
+		}
+	}()
 	announcer := &announcer{cs: cs, dyn: dyn}
 	for range time.Tick(10 * time.Second) {
 		announcer.sync(ctx, ref.Bouts(time.Now()))

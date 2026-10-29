@@ -46,6 +46,8 @@ type holder struct {
 	policyStore, budgetStore, priceStore cache.Store
 	pods                                 cache.Indexer
 
+	guard *guard
+
 	mu       sync.RWMutex
 	policies []belts.Policy
 }
@@ -99,13 +101,6 @@ func (h *holder) configure(ctx context.Context, ps []belts.Policy, budgets bool)
 		})
 	}
 	api := h.cs.AdmissionregistrationV1().ValidatingWebhookConfigurations()
-	if len(rules) == 0 && !budgets {
-		err := api.Delete(ctx, webhookName, metav1.DeleteOptions{})
-		if apierrors.IsNotFound(err) {
-			return nil
-		}
-		return err
-	}
 	client := func(path string) admregv1.WebhookClientConfig {
 		cc := admregv1.WebhookClientConfig{CABundle: h.caBundle}
 		if h.url != "" {
@@ -127,6 +122,19 @@ func (h *holder) configure(ctx context.Context, ps []belts.Policy, budgets bool)
 	if len(rules) > 0 {
 		want.Webhooks = append(want.Webhooks, hook("belts."+belts.Group, "/belts", rules))
 	}
+	// Contracts and spots always pass the referee, and so do deletions of
+	// what may be spotted.
+	op := func(ops []admregv1.OperationType, group string, resources ...string) admregv1.RuleWithOperations {
+		return admregv1.RuleWithOperations{Operations: ops,
+			Rule: admregv1.Rule{APIGroups: []string{group}, APIVersions: []string{"*"}, Resources: resources, Scope: ptr.To(admregv1.AllScopes)}}
+	}
+	cu := []admregv1.OperationType{admregv1.Create, admregv1.Update}
+	del := []admregv1.OperationType{admregv1.Delete}
+	want.Webhooks = append(want.Webhooks, hook("gym."+belts.Group, "/gym", []admregv1.RuleWithOperations{
+		op(cu, belts.Group, "contracts", "spots"),
+		op(del, "", "namespaces", "persistentvolumes"),
+		op(del, "apiextensions.k8s.io", "customresourcedefinitions"),
+	}))
 	if budgets {
 		want.Webhooks = append(want.Webhooks, hook("bucks."+belts.Group, "/bucks", []admregv1.RuleWithOperations{{
 			Operations: []admregv1.OperationType{admregv1.Create},
@@ -270,6 +278,7 @@ func serveWebhook(addr string, cert tls.Certificate, h *holder) {
 	}
 	mux.HandleFunc("POST /bucks", review(h.price))
 	mux.HandleFunc("POST /belts", review(h.review))
+	mux.HandleFunc("POST /gym", review(h.guard.review))
 	srv := &http.Server{Addr: addr, Handler: mux, ReadHeaderTimeout: 10 * time.Second,
 		TLSConfig: &tls.Config{Certificates: []tls.Certificate{cert}, MinVersion: tls.VersionTLS12}}
 	log.Fatal(srv.ListenAndServeTLS("", ""))

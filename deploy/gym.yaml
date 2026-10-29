@@ -207,3 +207,101 @@ spec:
           status:
             type: object
             x-kubernetes-preserve-unknown-fields: true
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: contracts.gym.gachinetes.dev
+spec:
+  group: gym.gachinetes.dev
+  scope: Cluster
+  names: {plural: contracts, singular: contract, kind: Contract, categories: [gym]}
+  versions:
+  - name: v1
+    served: true
+    storage: true
+    subresources: {status: {}}
+    additionalPrinterColumns:
+    - {name: Who, type: string, jsonPath: .metadata.annotations.gym\.gachinetes\.dev/requested-by}
+    - {name: Role, type: string, jsonPath: .spec.clusterRole}
+    - {name: Namespace, type: string, jsonPath: .spec.namespace}
+    - {name: For, type: string, jsonPath: .spec.duration}
+    - {name: Phase, type: string, jsonPath: .status.phase}
+    - {name: Message, type: string, jsonPath: .status.message, priority: 1}
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            required: [clusterRole, duration]
+            properties:
+              user: {type: string}
+              group: {type: string}
+              serviceAccount: {type: string}
+              clusterRole: {type: string}
+              namespace: {type: string}
+              duration: {type: string}
+              reason: {type: string}
+              spotter: {type: boolean}
+          status:
+            type: object
+            x-kubernetes-preserve-unknown-fields: true
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: spots.gym.gachinetes.dev
+spec:
+  group: gym.gachinetes.dev
+  scope: Cluster
+  names: {plural: spots, singular: spot, kind: Spot, categories: [gym]}
+  versions:
+  - name: v1
+    served: true
+    storage: true
+    subresources: {status: {}}
+    additionalPrinterColumns:
+    - {name: Resource, type: string, jsonPath: .spec.resource}
+    - {name: Target, type: string, jsonPath: .spec.name}
+    - {name: Asked, type: string, jsonPath: .metadata.annotations.gym\.gachinetes\.dev/requested-by}
+    - {name: Spotter, type: string, jsonPath: .metadata.annotations.gym\.gachinetes\.dev/approved-by}
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            required: [resource, name]
+            properties:
+              group: {type: string}
+              resource: {type: string}
+              name: {type: string}
+          status:
+            type: object
+            x-kubernetes-preserve-unknown-fields: true
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: lockers.gym.gachinetes.dev
+spec:
+  group: gym.gachinetes.dev
+  scope: Namespaced
+  names: {plural: lockers, singular: locker, kind: Locker, categories: [gym]}
+  versions:
+  - name: v1
+    served: true
+    storage: true
+    additionalPrinterColumns:
+    - {name: Secret, type: string, jsonPath: .spec.secret}
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            required: [secret, serviceAccounts]
+            properties:
+              secret: {type: string}
+              serviceAccounts: {type: array, items: {type: string}}

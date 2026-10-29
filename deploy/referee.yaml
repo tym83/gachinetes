@@ -30,6 +30,35 @@ rules:
 - apiGroups: [scheduling.k8s.io]
   resources: [priorityclasses]
   verbs: [create]
+# Contracts and lockers: bindings it makes and takes back, for roles it
+# does not hold itself (bind), and the trust epoch.
+- apiGroups: [rbac.authorization.k8s.io]
+  resources: [clusterroles]
+  verbs: [bind]
+- apiGroups: [rbac.authorization.k8s.io]
+  resources: [clusterrolebindings, rolebindings, roles]
+  verbs: [create, update, delete, escalate]
+- apiGroups: [gym.gachinetes.dev]
+  resources: [contracts/status, spots/status]
+  verbs: [update]
+- apiGroups: [""]
+  resources: [configmaps]
+  verbs: [create]
+- apiGroups: [authorization.k8s.io]
+  resources: [subjectaccessreviews]
+  verbs: [create]
+---
+# Saying the safeword: moving the trust epoch on ends every contract.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: gachinetes:safeword
+  namespace: gachinetes
+rules:
+- apiGroups: [""]
+  resources: [configmaps]
+  resourceNames: [trust-epoch]
+  verbs: [get, update]
 - apiGroups: [admissionregistration.k8s.io]
   resources: [validatingwebhookconfigurations]
   verbs: [create]
