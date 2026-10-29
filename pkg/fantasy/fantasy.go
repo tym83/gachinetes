@@ -288,6 +288,8 @@ func (c *ControlPlane) StartControlPlane(ctx context.Context) error {
 	p := func(f string) string { return filepath.Join(pki, f) }
 	if err := c.start("kube-apiserver", "--etcd-servers="+c.StoreURL(), "--etcd-compaction-interval=0",
 		"--advertise-address=127.0.0.1", "--bind-address=127.0.0.1", fmt.Sprintf("--secure-port=%d", c.port(4)),
+		// The copy has no network for the kubernetes Service to point at.
+		"--endpoint-reconciler-type=none",
 		"--service-cluster-ip-range=10.96.0.0/16",
 		"--client-ca-file="+p("ca.crt"), "--tls-cert-file="+p("apiserver.crt"), "--tls-private-key-file="+p("apiserver.key"),
 		"--service-account-issuer=https://kubernetes.default.svc", "--service-account-key-file="+p("sa.pub"),
