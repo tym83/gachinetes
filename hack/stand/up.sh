@@ -12,9 +12,10 @@ IP=$(hostname -i | awk '{print $1}')
 export PATH=$W/bin:$PATH
 mkdir -p $W/bin $R/pki $R/kube $R/logs
 cd $W/bin
-for b in kube-apiserver kube-controller-manager kubectl kubeadm; do
+for b in kube-apiserver kube-controller-manager kube-scheduler kubectl kubeadm; do
   [ -x $b ] || { curl -fsSLo $b https://dl.k8s.io/release/$V/bin/linux/amd64/$b && chmod +x $b; }
 done
+[ -x kwok ] || { curl -fsSLo kwok https://github.com/kubernetes-sigs/kwok/releases/download/${KWOK:-v0.7.0}/kwok-linux-amd64 && chmod +x kwok; }
 # KUBEROOT_STORE=<commit> tries a store not merged yet.
 GOBIN=$W/bin go install github.com/kuberoot-dev/kuberoot/cmd/kuberoot-store@${KUBEROOT_STORE:-main}
 (cd $W/src/gachinetes && go build -o $W/bin/ ./cmd/...)

@@ -9,7 +9,6 @@ package main
 import (
 	"bytes"
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -177,5 +176,3 @@ func plant(ctx context.Context, endpoint string, kvs []tape.KV) (kept, dropped i
 	}
 	return kept, dropped, nil
 }
-
-var _ = base64.StdEncoding
