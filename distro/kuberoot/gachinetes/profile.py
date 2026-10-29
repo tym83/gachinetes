@@ -33,6 +33,7 @@ new = """      - name: kube-scheduler
         - --store=http://127.0.0.1:2382
         - --listen={{.Node.IP}}:9282
         - --register={{.Node.IP}}
+        - --encryption-config={{pki "encryption.yaml"}}
       - name: gachi-referee
         after: apiserver
         args:

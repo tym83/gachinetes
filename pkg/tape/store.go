@@ -55,6 +55,20 @@ type Info struct {
 type Store struct {
 	URL    string
 	Client *http.Client
+	// Decrypter, when set, opens the values the API server encrypted, so
+	// that everything read from the tape is plain.
+	Decrypter *Decrypter
+}
+
+// open decrypts a value read from the tape; one that does not open stays
+// as it was, and decoding it says why.
+func (s *Store) open(kv *KV) {
+	if s.Decrypter == nil || kv.Deleted {
+		return
+	}
+	if v, err := s.Decrypter.Open(kv.Key, kv.Value); err == nil {
+		kv.Value = v
+	}
 }
 
 // Point is a moment of the tape: a revision, or a time when Rev is 0. Both
@@ -117,17 +131,37 @@ func (s *Store) Range(ctx context.Context, prefix string, p Point) (Range, error
 	q := url.Values{"key": {prefix}, "end": {prefixEnd(prefix)}}
 	p.query(q)
 	var r Range
-	return r, s.get(ctx, "/tape/v1/range", q, &r)
+	if err := s.get(ctx, "/tape/v1/range", q, &r); err != nil {
+		return r, err
+	}
+	for i := range r.KVs {
+		s.open(&r.KVs[i])
+	}
+	return r, nil
 }
 
 // History is every version of key, oldest first.
 func (s *Store) History(ctx context.Context, key string) ([]KV, error) {
 	var out []KV
-	return out, s.get(ctx, "/tape/v1/history", url.Values{"key": {key}}, &out)
+	if err := s.get(ctx, "/tape/v1/history", url.Values{"key": {key}}, &out); err != nil {
+		return nil, err
+	}
+	for i := range out {
+		s.open(&out[i])
+	}
+	return out, nil
 }
 
 // Graveyard is the keys under prefix deleted and not written since.
 func (s *Store) Graveyard(ctx context.Context, prefix string) ([]Grave, error) {
 	var out []Grave
-	return out, s.get(ctx, "/tape/v1/graveyard", url.Values{"key": {prefix}, "end": {prefixEnd(prefix)}}, &out)
+	if err := s.get(ctx, "/tape/v1/graveyard", url.Values{"key": {prefix}, "end": {prefixEnd(prefix)}}, &out); err != nil {
+		return nil, err
+	}
+	for i := range out {
+		if out[i].Last != nil {
+			s.open(out[i].Last)
+		}
+	}
+	return out, nil
 }

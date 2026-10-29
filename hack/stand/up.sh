@@ -32,6 +32,19 @@ if [ ! -f $R/pki/ca.crt ]; then
   done
 fi
 
+# Secrets encrypted at rest, as kuberoot does, with secretbox.
+[ -f $R/pki/encryption.yaml ] || cat > $R/pki/encryption.yaml <<YAML
+apiVersion: apiserver.config.k8s.io/v1
+kind: EncryptionConfiguration
+resources:
+- resources: [secrets]
+  providers:
+  - secretbox:
+      keys:
+      - {name: key1, secret: $(head -c 32 /dev/urandom | base64)}
+  - identity: {}
+YAML
+
 run() { name=$1; shift; pgrep -f "^$W/bin/$name" >/dev/null || setsid nohup "$W/bin/$name" "$@" >$R/logs/$name.log 2>&1 </dev/null & }
 
 run kuberoot-store --name s1 --data-dir $R/store \
@@ -47,14 +60,14 @@ run kube-apiserver --etcd-servers=http://127.0.0.1:2379 --etcd-compaction-interv
   --requestheader-extra-headers-prefix=X-Remote-Extra- --requestheader-group-headers=X-Remote-Group \
   --requestheader-username-headers=X-Remote-User \
   --proxy-client-cert-file=$R/pki/front-proxy-client.crt --proxy-client-key-file=$R/pki/front-proxy-client.key \
-  --enable-aggregator-routing=true
+  --enable-aggregator-routing=true --encryption-provider-config=$R/pki/encryption.yaml
 until kubectl --kubeconfig $R/kube/super-admin.conf get --raw /readyz >/dev/null 2>&1; do sleep 1; done
 run kube-controller-manager --kubeconfig=$R/kube/controller-manager.conf \
   --authentication-kubeconfig=$R/kube/controller-manager.conf --authorization-kubeconfig=$R/kube/controller-manager.conf \
   --service-account-private-key-file=$R/pki/sa.key --root-ca-file=$R/pki/ca.crt \
   --cluster-signing-cert-file=$R/pki/ca.crt --cluster-signing-key-file=$R/pki/ca.key \
   --use-service-account-credentials --leader-elect=false
-run gachi-tape --kubeconfig $R/kube/super-admin.conf --listen $IP:9282
+run gachi-tape --kubeconfig $R/kube/super-admin.conf --listen $IP:9282 --encryption-config $R/pki/encryption.yaml
 kubectl --kubeconfig $R/kube/super-admin.conf apply -f $W/src/gachinetes/deploy/gym.yaml
 kubectl --kubeconfig $R/kube/super-admin.conf wait --for condition=Established crd/bouts.gym.gachinetes.dev crd/beltpolicies.gym.gachinetes.dev
 # A short window, so that a bout is over within a scenario.

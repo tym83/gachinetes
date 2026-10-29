@@ -134,6 +134,7 @@ check "undelete the namespace" g undelete ns/shop
 check "deployment back" kubectl -n shop get deploy web
 check "its replica set made again by the controller, one" bash -c "until [ \$(kubectl -n shop get rs -o name | wc -l) -eq 1 ]; do sleep 1; done"
 check "service back with a new cluster IP" bash -c "kubectl -n shop get svc web -o jsonpath='{.spec.clusterIP}' | grep -v '^$svc_ip\$'"
+check "the store holds the secret encrypted" bash -c "etcdctl --endpoints http://127.0.0.1:2379 get /registry/secrets/shop/db --print-value-only 2>/dev/null | head -c 20 | grep -q 'k8s:enc:secretbox' || ! [ -x $W/bin/etcdctl ]"
 check "secret back with its data" bash -c "kubectl -n shop get secret db -o jsonpath='{.data.password}' | base64 -d | grep -qx three-hundred-bucks"
 check "configmap back" bash -c "kubectl -n shop get cm app -o jsonpath='{.data.greeting}' | grep -q 'deep dark'"
 check "custom resource back" kubectl -n shop get belt champion

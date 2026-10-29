@@ -5,6 +5,7 @@ go 1.26.5
 require (
 	github.com/spf13/cobra v1.10.2
 	go.etcd.io/etcd/client/v3 v3.7.3
+	golang.org/x/crypto v0.58.0
 	k8s.io/api v0.37.1
 	k8s.io/apimachinery v0.37.1
 	k8s.io/cli-runtime v0.37.1

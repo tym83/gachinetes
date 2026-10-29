@@ -38,6 +38,7 @@ func main() {
 	kubeconfig := flag.String("kubeconfig", "", "the cluster to ask, when not run in it")
 	register := flag.String("register", "", "run as a node service: keep an endpoint of the gachi-tape Service in --namespace at this address")
 	namespace := flag.String("namespace", "gachinetes", "the namespace of the gachi-tape Service")
+	encryption := flag.String("encryption-config", "", "the API server's encryption configuration, to open the Secrets it encrypted")
 	flag.Parse()
 	cfg, err := rest.InClusterConfig()
 	if *kubeconfig != "" {
@@ -57,7 +58,13 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	api := tape.Handler(&tape.Store{URL: *store, Client: &http.Client{Timeout: time.Minute}})
+	st := &tape.Store{URL: *store, Client: &http.Client{Timeout: time.Minute}}
+	if *encryption != "" {
+		if st.Decrypter, err = tape.LoadDecrypter(*encryption); err != nil {
+			log.Fatal(err)
+		}
+	}
+	api := tape.Handler(st)
 	disc := tape.Discovery()
 	root := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.HasPrefix(r.URL.Path, tape.Prefix+"/") {
