@@ -31,7 +31,9 @@ kubectl --kubeconfig $KC get nodes -o wide
 N1=$(kubectl --kubeconfig $KC get nodes -o jsonpath="{.items[?(@.status.addresses[0].address=='$G1')].metadata.name}")
 N2=$(kubectl --kubeconfig $KC get nodes -o jsonpath="{.items[?(@.status.addresses[0].address=='$G2')].metadata.name}")
 N3=$(kubectl --kubeconfig $KC get nodes -o jsonpath="{.items[?(@.status.addresses[0].address=='$G3')].metadata.name}")
-check "the scheduler is gachi-scheduler" bash -c "$NODEAPI --server https://$G1:50000 get nodeservice kube-scheduler -o yaml | grep -q gachi-scheduler || $NODEAPI --server https://$G1:50000 get --raw '/apis/node.kuberoot.dev/v1alpha1/nodeservices/kube-scheduler/log?tailLines=200' | grep -qi 'gachi\|TagTeam'"
+check "every node service runs" waitfor 120 bash -c "! $NODEAPI --server https://$G1:50000 get nodeservices --no-headers | grep -v ' Running '"
+check "the cluster has DNS" waitfor 300 bash -c "kubectl --kubeconfig $KC get pods -A | grep -q 'coredns.* Running '"
+check "the scheduler is gachi-scheduler"bash -c "$NODEAPI --server https://$G1:50000 get nodeservice kube-scheduler -o yaml | grep -q gachi-scheduler || $NODEAPI --server https://$G1:50000 get --raw '/apis/node.kuberoot.dev/v1alpha1/nodeservices/kube-scheduler/log?tailLines=200' | grep -qi 'gachi\|TagTeam'"
 
 counter() { # NAME NODE [ANNOTATIONS]
 cat <<EOF | k apply -f - >/dev/null
