@@ -61,7 +61,7 @@ kubectl delete beltpolicy war-replicas >/dev/null
 check "without policies the webhook goes" bash -c "waitfor 20 bash -c '! kubectl get validatingwebhookconfiguration gachinetes-belts'"
 
 echo "== why"
-pod=$(kubectl -n gym get pods -l app=war -o jsonpath='{.items[0].metadata.name}')
+pod=$(kubectl -n gym get pods -l app=war --sort-by=.metadata.creationTimestamp -o jsonpath='{.items[-1:].metadata.name}')
 check "why a pod: its replica set, and the deployment's change before it" bash -c \
   "g why pod/$pod -n gym | tee /dev/stderr | grep -q 'ReplicaSet' && g why pod/$pod -n gym | grep -q 'Deployment gym/war made it.*after .*changed by'"
 kubectl -n gym create configmap gone --from-literal=a=b >/dev/null; sleep 1; kubectl -n gym delete configmap gone >/dev/null
