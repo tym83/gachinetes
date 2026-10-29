@@ -30,6 +30,7 @@ var (
 	policiesGVR = schema.GroupVersionResource{Group: belts.Group, Version: belts.Version, Resource: "beltpolicies"}
 	budgetsGVR  = schema.GroupVersionResource{Group: belts.Group, Version: belts.Version, Resource: "budgets"}
 	pricesGVR   = schema.GroupVersionResource{Group: belts.Group, Version: belts.Version, Resource: "pricelists"}
+	shakesGVR   = schema.GroupVersionResource{Group: belts.Group, Version: belts.Version, Resource: "proteinshakes"}
 )
 
 // unwatched are resources the referee leaves alone: written by design by
@@ -84,9 +85,16 @@ func main() {
 	h.budgetStore = factory.ForResource(budgetsGVR).Informer().GetStore()
 	h.priceStore = factory.ForResource(pricesGVR).Informer().GetStore()
 	h.pods = factory.ForResource(schema.GroupVersionResource{Version: "v1", Resource: "pods"}).Informer().GetIndexer()
+	k := &kitchen{cs: cs, namespace: *namespace, shakes: factory.ForResource(shakesGVR).Informer().GetStore()}
+	_, _ = factory.ForResource(shakesGVR).Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc:    func(any) { k.reconcile(ctx) },
+		UpdateFunc: func(any, any) { k.reconcile(ctx) },
+		DeleteFunc: func(any) { k.reconcile(ctx) },
+	})
 	factory.Start(ctx.Done())
 	factory.WaitForCacheSync(ctx.Done())
 	h.reload(ctx)
+	k.reconcile(ctx)
 	log.Printf("♂ gachi-referee: watching, window %s, %d switches make a bout", *window, *switches)
 
 	announcer := &announcer{cs: cs, dyn: dyn}

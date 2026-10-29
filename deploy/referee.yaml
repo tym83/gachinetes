@@ -22,6 +22,14 @@ rules:
 - apiGroups: [""]
   resources: [events]
   verbs: [create]
+# Protein: placeholders and image holders in its own namespace, and the
+# placeholders' priority class.
+- apiGroups: [apps]
+  resources: [deployments, daemonsets]
+  verbs: [create, update, delete]
+- apiGroups: [scheduling.k8s.io]
+  resources: [priorityclasses]
+  verbs: [create]
 - apiGroups: [admissionregistration.k8s.io]
   resources: [validatingwebhookconfigurations]
   verbs: [create]

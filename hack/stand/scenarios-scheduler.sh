@@ -102,6 +102,29 @@ check "pods land next to the peer they talk to" waitfor 30 bash -c \
   "[ \"\$(nodeof door web-1)\$(nodeof door web-2)\$(nodeof door web-3)\" = n-bn-bn-b ]"
 kubectl delete ns door --wait=false >/dev/null
 
+echo "== protein"
+for ns in weights teams door; do waitfor 120 bash -c "! kubectl get ns $ns" >/dev/null; done
+kubectl apply -f - >/dev/null <<'YAML'
+apiVersion: gym.gachinetes.dev/v1
+kind: ProteinShake
+metadata: {name: warm}
+spec:
+  reserve: {count: 2, cpu: "2"}
+  images: [nginx:1.27]
+YAML
+check "the placeholders hold their room" waitfor 60 bash -c \
+  "[ \$(kubectl -n gachinetes get pods -l gym.gachinetes.dev/protein=warm,gym.gachinetes.dev/protein-part=reserve -o jsonpath='{range .items[*]}{.spec.nodeName}{\"\\n\"}{end}' | grep -c .) -eq 2 ]"
+check "the images are held on the nodes" waitfor 30 kubectl -n gachinetes get daemonset protein-warm-images
+kubectl create ns lift >/dev/null
+run lift heavy 3
+check "a real pod pushes a placeholder out and takes its room" waitfor 60 bash -c "[ -n \"\$(nodeof lift heavy)\" ]"
+check "a placeholder waits for room again" waitfor 30 bash -c \
+  "kubectl -n gachinetes get pods -l gym.gachinetes.dev/protein-part=reserve --field-selector=status.phase=Pending -o name | grep -q ."
+kubectl delete proteinshake warm >/dev/null
+check "a shake gone takes its placeholders" waitfor 30 bash -c "! kubectl -n gachinetes get deployment protein-warm"
+kubectl delete ns lift --wait=false >/dev/null
+for ns in lift; do waitfor 120 bash -c "! kubectl get ns $ns" >/dev/null; done
+
 echo "== three hundred bucks"
 kubectl create ns cheap >/dev/null
 kubectl apply -f - >/dev/null <<'YAML'
