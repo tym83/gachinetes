@@ -56,7 +56,11 @@ pkill -f "^$W/bin/gachi-referee"; while pgrep -f "^$W/bin/gachi-referee" >/dev/n
 check "a referee that is down lets writes through" bash -c "kubectl -n gym patch deployment war --field-manager=argocd -p '{\"spec\":{\"replicas\":8}}'"
 setsid nohup $W/bin/gachi-referee --kubeconfig $KUBECONFIG --listen $IP:9443 --webhook-url https://$IP:9443/belts --window 60s \
   >>$R/logs/gachi-referee.log 2>&1 </dev/null &
-check "back up, it refuses again" bash -c "waitfor 30 bash -c \"kubectl -n gym patch deployment war --field-manager=argocd -p '{\\\"spec\\\":{\\\"replicas\\\":7}}' 2>&1 | grep -q 'belongs to'\""
+# Until the API server takes the referee's new certificate a write still
+# gets through; each try asks for a new count, or it would be no change.
+challenge() { kubectl -n gym patch deployment war --field-manager=argocd -p "{\"spec\":{\"replicas\":$((RANDOM % 50 + 10))}}" 2>&1 | grep -q 'belongs to'; }
+export -f challenge
+check "back up, it refuses again" bash -c "waitfor 30 challenge"
 kubectl delete beltpolicy war-replicas >/dev/null
 check "without policies the belts' webhook goes" bash -c "waitfor 20 bash -c '! kubectl get validatingwebhookconfiguration gachinetes-belts -o jsonpath={.webhooks[*].name} | grep -q belts'"
 
