@@ -60,8 +60,10 @@ check "the fantasy plays out" test $rc -eq 0
 check "the deployment would be made" grep -q "+ Deployment dream/big" $R/fantasy-1.txt
 check "its replica set too" grep -q "+ ReplicaSet dream/big-" $R/fantasy-1.txt
 check "three pods would come" bash -c "[ \$(grep -c '+ Pod dream/big-' $R/fantasy-1.txt) -eq 3 ]"
-check "two would land on nodes" bash -c "[ \$(grep -E '\\+ Pod dream/big-.* → n[12]' $R/fantasy-1.txt | wc -l) -eq 2 ]"
-check "one would find no place" bash -c "grep -A3 'Would find no place (1)' $R/fantasy-1.txt | grep -q 'Pod dream/big-'"
+# Where base's pods went decides how many fit: each big pod lands or
+# finds no place, and with 2 CPUs taken of 8, at least one finds none.
+check "every pod would land or find no place" bash -c "[ \$(( \$(grep -cE '\\+ Pod dream/big-.* → n[12]' $R/fantasy-1.txt) + \$(grep -c '! Pod dream/big-' $R/fantasy-1.txt) )) -eq 3 ]"
+check "at least one would find no place" grep -q "! Pod dream/big-" $R/fantasy-1.txt
 check "the real cluster did not change" bash -c "! kubectl -n dream get deployment big"
 check "the fantasy stopped" bash -c "! pgrep -f '^/work/bin/kuberoot-store --name fantasy'"
 

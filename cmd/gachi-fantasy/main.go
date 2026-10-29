@@ -101,7 +101,7 @@ func merge(ctx context.Context, f flags, branch int64) error {
 	if len(cfls) > 0 {
 		return mergeError(cfls)
 	}
-	args := []string{"apply", "--server-side", "--field-manager=fantasy"}
+	args := []string{"apply", "--server-side", "--force-conflicts", "--field-manager=fantasy"}
 	if f.kubeconfig != "" {
 		args = append([]string{"--kubeconfig", f.kubeconfig}, args...)
 	}
@@ -158,7 +158,7 @@ func run(ctx context.Context, f flags) (*fantasy.Report, error) {
 	log.Printf("settled at revision %d; applying the change", before)
 	for _, file := range f.changes {
 		out, err := exec.CommandContext(ctx, filepath.Join(f.bin, "kubectl"), "--kubeconfig", c.Kubeconfig(),
-			"apply", "--server-side", "--field-manager=fantasy", "-f", file).CombinedOutput()
+			"apply", "--server-side", "--force-conflicts", "--field-manager=fantasy", "-f", file).CombinedOutput()
 		if err != nil {
 			return nil, fmt.Errorf("applying %s: %v: %s", file, err, out)
 		}
