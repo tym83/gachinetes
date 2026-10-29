@@ -47,7 +47,12 @@ spec:
 EOF
 }
 last() { k logs "$1" 2>/dev/null | tail -1; }
-first() { k logs "$1" 2>/dev/null | head -1; }
+# The first count the container wrote since it last started: a restored
+# container brings its log along, so the log's own first line is older.
+first() {
+  local t; t=$(k get pod "$1" -o jsonpath='{.status.containerStatuses[0].state.running.startedAt}')
+  k logs "$1" --timestamps 2>/dev/null | awk -v t="${t:0:19}" 'substr($1, 1, 19) >= t {print $2; exit}'
+}
 export -f last first
 
 echo "== live migration"
