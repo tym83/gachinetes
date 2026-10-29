@@ -116,6 +116,7 @@ metadata: {name: warm}
 spec:
   reserve: {count: 2, cpu: "2"}
   nodeSelector: {gym.gachinetes.dev/stand: scheduler}
+  tolerations: [{operator: Exists}]
   images: [nginx:1.27]
 YAML
 check "the placeholders hold their room" waitfor 60 bash -c \

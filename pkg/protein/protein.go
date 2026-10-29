@@ -39,6 +39,9 @@ type Shake struct {
 	// Images are pulled onto every node NodeSelector picks.
 	Images       []string          `json:"images,omitempty"`
 	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
+	// Tolerations let the placeholders and image holders onto tainted
+	// pools, as the pods they keep room for are let.
+	Tolerations []v1.Toleration `json:"tolerations,omitempty"`
 }
 
 // Reserve is room held for pods to come.
@@ -108,7 +111,7 @@ func (s Shake) Placeholders(namespace string) (*appsv1.Deployment, error) {
 					PriorityClassName:             PriorityClass,
 					TerminationGracePeriodSeconds: ptr.To(int64(0)),
 					NodeSelector:                  s.NodeSelector,
-					Tolerations:                   []v1.Toleration{{Key: "nvidia.com/gpu", Operator: v1.TolerationOpExists}},
+					Tolerations:                   append([]v1.Toleration{{Key: "nvidia.com/gpu", Operator: v1.TolerationOpExists}}, s.Tolerations...),
 					AutomountServiceAccountToken:  ptr.To(false),
 					Containers: []v1.Container{{
 						Name: "protein", Image: Pause,
