@@ -76,7 +76,13 @@ func (a *app) vhsHandler(addr, token string) http.Handler {
 		w.Header().Set("Content-Security-Policy", "default-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:")
 		_, _ = w.Write([]byte(strings.Replace(string(page), "{{TOKEN}}", token, 1)))
 	})
-	mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServerFS(static)))
+	// Embedded files carry no modification time: without this a browser
+	// keeps the deck of an older gachictl.
+	assets := http.StripPrefix("/static/", http.FileServerFS(static))
+	mux.Handle("GET /static/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "no-cache")
+		assets.ServeHTTP(w, r)
+	}))
 	// The tape, read-only, with the user's rights.
 	mux.HandleFunc("GET /api/tape/{what}", func(w http.ResponseWriter, r *http.Request) {
 		what := r.PathValue("what")
