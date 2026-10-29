@@ -75,6 +75,28 @@ cat $R/fantasy-2.txt
 check "branched from the revision asked" grep -q "from revision $before" $R/fantasy-2.txt
 check "with base at 2, one big pod finds no place, as before" grep -q "Would find no place (1)" $R/fantasy-2.txt
 
+echo "== merging"
+cat > $R/base-3.yaml <<'YAML'
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: base, namespace: dream}
+spec:
+  replicas: 3
+  selector: {matchLabels: {app: base}}
+  template:
+    metadata: {labels: {app: base}}
+    spec:
+      containers: [{name: c, image: nginx:1.27, resources: {requests: {cpu: "1"}}}]
+YAML
+gachi-fantasy -f $R/base-3.yaml --at $before --merge --work $R/fantasy-3 --bin $W/bin --until-quiet 15s --timeout 5m \
+  >$R/fantasy-3.txt 2>$R/fantasy-3.log
+rc=$?
+check "a merge over what the cluster wrote since is refused" bash -c "[ $rc -ne 0 ] && grep -q 'the cluster moved on' $R/fantasy-3.log"
+check "and the cluster keeps its own" bash -c "[ \$(kubectl -n dream get deploy base -o jsonpath='{.spec.replicas}') -eq 4 ]"
+gachi-fantasy -f $R/big.yaml --merge --work $R/fantasy-4 --bin $W/bin --until-quiet 15s --timeout 5m \
+  >$R/fantasy-4.txt 2>$R/fantasy-4.log
+check "a clean merge applies the change" bash -c "kubectl -n dream get deployment big && grep -q 'merged' $R/fantasy-4.txt"
+
 echo
 [ $fails -eq 0 ] && echo "ALL PASSED" || echo "$fails FAILED"
 exit $fails

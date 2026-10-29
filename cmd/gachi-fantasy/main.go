@@ -21,7 +21,9 @@ import (
 	"time"
 
 	clientv3 "go.etcd.io/etcd/client/v3"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/tym83/gachinetes/pkg/fantasy"
@@ -32,7 +34,7 @@ type flags struct {
 	kubeconfig, at, work, bin, report string
 	changes                           []string
 	quiet, timeout                    time.Duration
-	keep                              bool
+	keep, merge                       bool
 	base                              int
 }
 
@@ -48,6 +50,7 @@ func main() {
 	flag.DurationVar(&f.quiet, "until-quiet", 20*time.Second, "the fantasy is over once nothing changes this long")
 	flag.DurationVar(&f.timeout, "timeout", 10*time.Minute, "and in any case after this long")
 	flag.BoolVar(&f.keep, "keep", false, "leave the fantasy running, to look around in it")
+	flag.BoolVar(&f.merge, "merge", false, "then apply the change to the real cluster, unless it wrote the change's objects since the branch")
 	flag.IntVar(&f.base, "port-base", 23000, "the fantasy's ports start here")
 	flag.Parse()
 	if changes == "" {
@@ -65,6 +68,57 @@ func main() {
 			log.Fatal(err)
 		}
 	}
+	if f.merge {
+		if err := merge(context.Background(), f, rep.Branch); err != nil {
+			log.Fatal(err)
+		}
+	}
+}
+
+// merge applies the change to the real cluster, as the fantasy did, when
+// the cluster has not written the change's objects since the branch.
+func merge(ctx context.Context, f flags, branch int64) error {
+	objs, err := objectsIn(f.changes)
+	if err != nil {
+		return err
+	}
+	cfg, err := realConfig(f)
+	if err != nil {
+		return err
+	}
+	cs, err := kubernetes.NewForConfig(cfg)
+	if err != nil {
+		return err
+	}
+	dyn, err := dynamic.NewForConfig(cfg)
+	if err != nil {
+		return err
+	}
+	cfls, err := conflicts(ctx, cs, dyn, objs, branch)
+	if err != nil {
+		return err
+	}
+	if len(cfls) > 0 {
+		return mergeError(cfls)
+	}
+	args := []string{"apply", "--server-side", "--field-manager=fantasy"}
+	if f.kubeconfig != "" {
+		args = append([]string{"--kubeconfig", f.kubeconfig}, args...)
+	}
+	for _, file := range f.changes {
+		out, err := exec.CommandContext(ctx, filepath.Join(f.bin, "kubectl"), append(args, "-f", file)...).CombinedOutput()
+		if err != nil {
+			return fmt.Errorf("merging %s: %v: %s", file, err, out)
+		}
+		fmt.Printf("♂ merged: %s", out)
+	}
+	return nil
+}
+
+func realConfig(f flags) (*rest.Config, error) {
+	rules := clientcmd.NewDefaultClientConfigLoadingRules()
+	rules.ExplicitPath = f.kubeconfig
+	return clientcmd.NewNonInteractiveDeferredLoadingClientConfig(rules, nil).ClientConfig()
 }
 
 func run(ctx context.Context, f flags) (*fantasy.Report, error) {
@@ -128,9 +182,7 @@ func run(ctx context.Context, f flags) (*fantasy.Report, error) {
 // tape API, with the caller's rights: it takes the right to read Secrets.
 func fetchSeed(ctx context.Context, f flags) (tape.Range, error) {
 	var r tape.Range
-	rules := clientcmd.NewDefaultClientConfigLoadingRules()
-	rules.ExplicitPath = f.kubeconfig
-	cfg, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(rules, nil).ClientConfig()
+	cfg, err := realConfig(f)
 	if err != nil {
 		return r, err
 	}

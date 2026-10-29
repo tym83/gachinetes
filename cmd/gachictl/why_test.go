@@ -16,7 +16,7 @@ func TestExplainAPendingPod(t *testing.T) {
 	pod := &unstructured.Unstructured{Object: map[string]any{
 		"kind": "Pod",
 		"status": map[string]any{
-			"phase": "Pending",
+			"phase":      "Pending",
 			"conditions": []any{map[string]any{"type": "PodScheduled", "status": "False", "reason": "Unschedulable", "message": "0/3 nodes are available"}},
 			"containerStatuses": []any{map[string]any{"name": "web",
 				"state":     map[string]any{"waiting": map[string]any{"reason": "CrashLoopBackOff", "message": "back-off"}},
