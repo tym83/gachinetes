@@ -55,7 +55,7 @@ func (a *app) vhsCmd() *cobra.Command {
 			return srv.Serve(l)
 		},
 	}
-	c.Flags().IntVar(&port, "port", 8383, "the loopback port; 0 picks one")
+	c.Flags().IntVar(&port, "port", 8300, "the loopback port; 0 picks one")
 	c.Flags().BoolVar(&noOpen, "no-open", false, "do not open a browser")
 	return c
 }
