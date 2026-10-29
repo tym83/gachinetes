@@ -342,3 +342,36 @@ spec:
           status:
             type: object
             x-kubernetes-preserve-unknown-fields: true
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: sparrings.gym.gachinetes.dev
+spec:
+  group: gym.gachinetes.dev
+  scope: Namespaced
+  names: {plural: sparrings, singular: sparring, kind: Sparring, categories: [gym]}
+  versions:
+  - name: v1
+    served: true
+    storage: true
+    subresources: {status: {}}
+    additionalPrinterColumns:
+    - {name: Deployment, type: string, jsonPath: .spec.deployment}
+    - {name: Rank, type: string, jsonPath: .status.rank}
+    - {name: Won, type: integer, jsonPath: .status.wins}
+    - {name: Lost, type: integer, jsonPath: .status.losses}
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            required: [deployment]
+            properties:
+              deployment: {type: string}
+              every: {type: string}
+              recoverWithin: {type: string}
+          status:
+            type: object
+            x-kubernetes-preserve-unknown-fields: true
