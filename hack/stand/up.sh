@@ -15,7 +15,8 @@ cd $W/bin
 for b in kube-apiserver kube-controller-manager kubectl kubeadm; do
   [ -x $b ] || { curl -fsSLo $b https://dl.k8s.io/release/$V/bin/linux/amd64/$b && chmod +x $b; }
 done
-[ -x kuberoot-store ] || GOBIN=$W/bin go install github.com/kuberoot-dev/kuberoot/cmd/kuberoot-store@main
+# KUBEROOT_STORE=<commit> tries a store not merged yet.
+GOBIN=$W/bin go install github.com/kuberoot-dev/kuberoot/cmd/kuberoot-store@${KUBEROOT_STORE:-main}
 (cd $W/src/gachinetes && go build -o $W/bin/ ./cmd/...)
 
 if [ ! -f $R/pki/ca.crt ]; then

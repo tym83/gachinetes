@@ -165,6 +165,19 @@ check "the restored store's graveyard keeps the namespace's past" bash -c \
   "curl -sf 'http://127.0.0.1:12382/tape/v1/history?key=/registry/namespaces/shop' | grep -q deleted"
 pkill -f "^$W/bin/kuberoot-store --name r1"
 
+echo "== retention cuts the tape"
+from_before=$(num from)
+pkill -f "^$W/bin/kuberoot-store --name s1"; while pgrep -f "^$W/bin/kuberoot-store --name s1" >/dev/null; do sleep 1; done
+setsid nohup $W/bin/kuberoot-store --name s1 --data-dir $R/store --listen-client-urls http://127.0.0.1:2379 \
+  --listen-peer-urls http://127.0.0.1:2380 --keep-history --history-retention=30s --listen-tape-urls http://127.0.0.1:2382 \
+  >>$R/logs/kuberoot-store.log 2>&1 </dev/null &
+until kubectl get --raw /readyz >/dev/null 2>&1 && info >/dev/null 2>&1; do sleep 2; done
+kubectl -n shop patch configmap app --type merge -p '{"data":{"greeting":"ass we can"}}' >/dev/null
+until [ "$(num from)" -gt "$from_before" ]; do sleep 5; done
+check "the tape starts later after a cut" sh -c "[ $(num from) -gt $from_before ]"
+check "a moment before the cut is refused" bash -c "! g get configmap/app -n shop --at $T1"
+check "now still reads" bash -c "g get configmap/app -n shop --at 1s -o yaml | grep -q 'ass we can'"
+
 echo
 [ $fails -eq 0 ] && echo "ALL PASSED" || echo "$fails FAILED"
 exit $fails

@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
@@ -105,25 +106,30 @@ func (a *app) target(args []string, allNamespaces bool) (target, error) {
 		name = args[1]
 	}
 	t.name = name
-	kind, err := a.kindOf(res)
+	kind, namespaced, err := a.kindOf(res)
 	if err != nil {
 		return t, err
 	}
 	t.kind = kind
-	if kind == "Namespace" {
+	switch {
+	case kind == "Namespace":
 		t.namespace = name
+	case !namespaced:
+		t.namespace = ""
 	}
 	return t, nil
 }
 
-func (a *app) kindOf(res string) (string, error) {
+// kindOf resolves what the user typed to a kind, and whether objects of
+// it live in a namespace.
+func (a *app) kindOf(res string) (string, bool, error) {
 	if a.tapeURL != "" {
 		// No API server to ask: take a kind as typed.
-		return res, nil
+		return res, true, nil
 	}
 	m, err := a.flags.ToRESTMapper()
 	if err != nil {
-		return "", err
+		return "", false, err
 	}
 	gvr, _ := schema.ParseResourceArg(res)
 	if gvr == nil {
@@ -132,12 +138,17 @@ func (a *app) kindOf(res string) (string, error) {
 	}
 	gvk, err := m.KindFor(*gvr)
 	if err != nil {
-		return "", err
+		return "", false, err
 	}
+	mapping, err := m.RESTMapping(gvk.GroupKind(), gvk.Version)
+	if err != nil {
+		return "", false, err
+	}
+	namespaced := mapping.Scope.Name() == meta.RESTScopeNameNamespace
 	if gvk.Group != "" {
-		return gvk.Kind + "." + gvk.Group, nil
+		return gvk.Kind + "." + gvk.Group, namespaced, nil
 	}
-	return gvk.Kind, nil
+	return gvk.Kind, namespaced, nil
 }
 
 func (t target) query(q url.Values) url.Values {
