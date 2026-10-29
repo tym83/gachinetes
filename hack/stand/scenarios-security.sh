@@ -38,8 +38,29 @@ subjects:
 - {kind: User, name: carol, apiGroup: rbac.authorization.k8s.io}
 YAML
 mkns prod
-kubectl create rolebinding carol-admin -n prod --clusterrole=admin --user=carol >/dev/null
-kubectl create clusterrolebinding carol-bind --clusterrole=admin --user=carol >/dev/null 2>&1 || true
+# carol may grant admin (the bind verb on it) and delete namespaces; bob
+# may delete namespaces too.
+kubectl apply -f - >/dev/null <<'YAML'
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata: {name: grant-admin}
+rules:
+- apiGroups: [rbac.authorization.k8s.io]
+  resources: [clusterroles]
+  resourceNames: [admin]
+  verbs: [bind]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata: {name: delete-namespaces}
+rules:
+- apiGroups: [""]
+  resources: [namespaces]
+  verbs: [get, delete]
+YAML
+kubectl create clusterrolebinding carol-grant --clusterrole=grant-admin --user=carol >/dev/null
+kubectl create clusterrolebinding carol-delete --clusterrole=delete-namespaces --user=carol >/dev/null
+kubectl create clusterrolebinding bob-delete --clusterrole=delete-namespaces --user=bob >/dev/null
 
 echo "== contracts"
 check "alice cannot read prod's secrets on her own" bash -c "! kubectl -n prod get secrets --as alice"
@@ -62,15 +83,15 @@ check "a contract after the safeword holds" bash -c "gachictl contract fix-4 --r
 
 echo "== spotters"
 kubectl label ns prod gym.gachinetes.dev/spotted=true >/dev/null
-check "a spotted namespace is not deleted without a spot" bash -c "! kubectl delete ns prod 2>&1 | tee /dev/stderr | grep -q deleted"
-spot=$(gachictl spot delete namespaces/prod 2>/dev/null | grep -o 'spot/[a-z0-9-]*' | cut -d/ -f2)
-check "a spot is asked" test -n "$spot"
-check "without a spotter it still stands" bash -c "! kubectl delete ns prod --wait=false"
-kubectl annotate spot "$spot" gym.gachinetes.dev/approved-by=admin >/dev/null 2>&1
-check "the asker cannot approve their own spot" bash -c "! kubectl annotate spot $spot gym.gachinetes.dev/approved-by=fantasy-admin --overwrite"
-kubectl create clusterrolebinding carol-delete-ns --clusterrole=cluster-admin --user=carol >/dev/null
+check "a spotted namespace is not deleted without a spot" bash -c "! kubectl delete ns prod --wait=false --as bob 2>&1 | tee /dev/stderr | grep -q deleted"
+spot=$(gachictl spot delete namespaces/prod --as bob 2>/dev/null | grep -o 'spot/[a-z0-9-]*' | cut -d/ -f2)
+check "bob asks for a spot" test -n "$spot"
+check "without a spotter it still stands" bash -c "! kubectl delete ns prod --wait=false --as bob"
+check "bob cannot approve his own spot" bash -c "! gachictl spot spot/$spot --as bob"
+check "alice, who may not delete it, cannot approve" bash -c "! gachictl spot spot/$spot --as alice"
 check "carol approves" gachictl spot spot/$spot --as carol
-check "with the spot, it goes" waitfor 15 kubectl delete ns prod --wait=false
+check "only bob, who asked, deletes with it" bash -c "! kubectl delete ns prod --wait=false --as carol"
+check "with the spot, it goes" waitfor 15 kubectl delete ns prod --wait=false --as bob
 
 echo "== the dungeon"
 mkns cell
