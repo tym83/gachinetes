@@ -57,8 +57,8 @@ new = """      - name: kube-scheduler
         args:
         - /usr/bin/gachi-referee
         - --kubeconfig={{kube "admin.kubeconfig"}}
-        - --listen={{.Node.IP}}:9443
-        - --webhook-url=https://{{.Node.IP}}:9443/belts
+        - --listen={{.Node.IP}}:9444
+        - --webhook-url=https://{{.Node.IP}}:9444/belts
       - name: gachi-mover
         after: apiserver
         args:
