@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- CI on pull requests and on `main`: gofmt, `go vet` and `go test` for both
+  modules, and every component image built without pushing.
+
 ## [0.1.0] - 2026-11-08
 
 First release. Gachinetes is a research distribution: a working study, not a
