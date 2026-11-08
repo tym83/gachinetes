@@ -1,0 +1,30 @@
+# gachi-fantasy with what a fantasy runs: kuberoot-store, the control
+# plane's binaries and kwok, for previews of pull requests
+# (gachictl fantasy preview). Every binary is static.
+FROM --platform=$BUILDPLATFORM golang:1.26 AS build
+ARG TARGETOS=linux
+ARG TARGETARCH
+ARG KUBEROOT_REF=main
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -trimpath -ldflags=-s -o /out/gachi-fantasy ./cmd/gachi-fantasy
+RUN git clone -q --depth 1 --branch "${KUBEROOT_REF}" https://github.com/kuberoot-dev/kuberoot /kuberoot && \
+    cd /kuberoot && CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -trimpath -ldflags=-s -o /out/kuberoot-store ./cmd/kuberoot-store
+
+FROM --platform=$BUILDPLATFORM alpine:3.22 AS fetch
+ARG TARGETARCH
+ARG KUBERNETES=v1.37.2
+ARG KWOK=v0.7.0
+RUN apk add --no-cache curl && mkdir /out && cd /out && \
+    for b in kube-apiserver kube-controller-manager kube-scheduler kubectl; do \
+      curl -fsSLo $b "https://dl.k8s.io/release/${KUBERNETES}/bin/linux/${TARGETARCH}/$b" || exit 1; \
+    done && \
+    curl -fsSLo kwok "https://github.com/kubernetes-sigs/kwok/releases/download/${KWOK}/kwok-linux-${TARGETARCH}" && \
+    chmod +x /out/*
+
+FROM gcr.io/distroless/static:nonroot
+COPY --from=fetch /out/ /usr/local/bin/
+COPY --from=build /out/ /usr/local/bin/
+ENTRYPOINT ["/usr/local/bin/gachi-fantasy"]

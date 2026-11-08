@@ -65,7 +65,7 @@ func TestSummarize(t *testing.T) {
 
 func TestMakePKI(t *testing.T) {
 	dir := t.TempDir()
-	if err := makePKI(dir+"/pki", dir+"/kube", 23004); err != nil {
+	if err := makePKI(dir+"/pki", dir+"/kube", 23004, []string{"pr-1.gachi-fantasies.svc"}); err != nil {
 		t.Fatal(err)
 	}
 	cfg, err := clientcmd.BuildConfigFromFlags("", dir+"/kube/super-admin.conf")
@@ -77,5 +77,8 @@ func TestMakePKI(t *testing.T) {
 	c, err := x509.ParseCertificate(block.Bytes)
 	if err != nil || len(c.IPAddresses) == 0 || !c.IPAddresses[0].Equal(net.ParseIP("127.0.0.1")) {
 		t.Fatalf("apiserver certificate: %v", err)
+	}
+	if err := c.VerifyHostname("pr-1.gachi-fantasies.svc"); err != nil {
+		t.Fatalf("the preview's name: %v", err)
 	}
 }

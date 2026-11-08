@@ -1,0 +1,65 @@
+# A preview of each pull request on a branch of the cluster (Gachinetes
+# fantasies). Copy to .github/workflows/ of the repository whose manifests
+# go to the cluster. Needs:
+#   secrets.GACHINETES_KUBECONFIG  a kubeconfig bound to the Role
+#                                  gachi-fantasy-previewer (deploy/fantasy-preview.yaml)
+#   vars.MANIFESTS                 the directory of the manifests (default deploy/)
+# The preview's report goes to the pull request as a comment. Closing the
+# request discards the preview; merging it leaves the preview and offers
+# gachictl fantasy merge, which applies the manifests to the cluster unless
+# the cluster wrote the same objects since the branch.
+name: fantasy-preview
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: fantasy-preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  PR: ${{ github.repository }}#${{ github.event.pull_request.number }}
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        if: github.event.action != 'closed'
+      - name: gachictl
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          # The latest release of Gachinetes (previews need one after 0.1.0).
+          gh release download -R tym83/gachinetes --pattern '*_linux_amd64.tar.gz' --dir "$RUNNER_TEMP/gachinetes"
+          tar -xzf "$RUNNER_TEMP"/gachinetes/*.tar.gz -C "$RUNNER_TEMP/gachinetes"
+          sudo install "$RUNNER_TEMP"/gachinetes/gachinetes_*/gachictl /usr/local/bin/
+          echo "${{ secrets.GACHINETES_KUBECONFIG }}" > "$RUNNER_TEMP/kubeconfig"
+          echo "KUBECONFIG=$RUNNER_TEMP/kubeconfig" >> "$GITHUB_ENV"
+      - name: Preview
+        if: github.event.action != 'closed'
+        run: |
+          gachictl fantasy preview --pr "$PR" --manifests "${{ vars.MANIFESTS || 'deploy/' }}" \
+            --ttl 72h --report-out "$RUNNER_TEMP/report.md"
+      - name: Discard
+        if: github.event.action == 'closed' && !github.event.pull_request.merged
+        run: gachictl fantasy discard --pr "$PR"
+      - name: Offer the merge
+        if: github.event.action == 'closed' && github.event.pull_request.merged
+        run: |
+          printf '### ♂ Merged\n\nThe preview is still up. To apply its manifests to the cluster, unless it moved on since the branch:\n\n```\ngachictl fantasy merge --pr %s\n```\n' "$PR" > "$RUNNER_TEMP/report.md"
+      - name: Comment
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ -f "$RUNNER_TEMP/report.md" ]; then
+            gh pr comment "${{ github.event.pull_request.number }}" -R "${{ github.repository }}" --body-file "$RUNNER_TEMP/report.md"
+          fi

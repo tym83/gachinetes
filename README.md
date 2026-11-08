@@ -38,7 +38,11 @@ which owner made it after which change, and the bouts around it.
 at any point of the tape, with real controllers and scheduler and kwok for
 the nodes, and reports what would be made, changed and removed, where pods
 would land and which would find no place. `--merge` then applies it unless
-the cluster moved on.
+the cluster moved on. A fantasy can also be a pull request's preview
+environment: `gachictl fantasy preview --pr URL --manifests DIR` keeps a
+branch with the request's manifests applied up for a while, with its own
+API server and kubeconfig; closing the request discards it, merging it
+offers `gachictl fantasy merge` ([a GitHub Actions workflow](examples/github/fantasy-preview.yaml)).
 
 **The scheduler.** `gachi-scheduler` is kube-scheduler with three rules: a
 super-heavyweight holds its node alone; a tag team goes in all at once or

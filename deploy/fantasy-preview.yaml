@@ -1,0 +1,67 @@
+# Previews of pull requests (gachictl fantasy preview): each a Job in
+# gachi-fantasies running a fantasy on the request's manifests. The Job's
+# service account reads the raw tape, Secrets included, to seed the branch,
+# and writes its preview's report and kubeconfig.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: gachi-fantasies
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: gachi-fantasy-preview
+  namespace: gachi-fantasies
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: gachi-fantasy-preview:tape
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: gachinetes:dungeon-master
+subjects:
+- kind: ServiceAccount
+  name: gachi-fantasy-preview
+  namespace: gachi-fantasies
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: gachi-fantasy-preview
+  namespace: gachi-fantasies
+rules:
+- apiGroups: [""]
+  resources: [configmaps, secrets]
+  verbs: [get, update]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: gachi-fantasy-preview
+  namespace: gachi-fantasies
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: gachi-fantasy-preview
+subjects:
+- kind: ServiceAccount
+  name: gachi-fantasy-preview
+  namespace: gachi-fantasies
+---
+# Who runs previews (CI, people): Jobs, Services, ConfigMaps and Secrets
+# in gachi-fantasies. Bind it to them; merging needs their rights in the
+# cluster besides.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: gachi-fantasy-previewer
+  namespace: gachi-fantasies
+rules:
+- apiGroups: [batch]
+  resources: [jobs]
+  verbs: [get, list, create, delete]
+- apiGroups: [""]
+  resources: [services, configmaps, secrets]
+  verbs: [get, list, create, delete]
