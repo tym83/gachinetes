@@ -1,0 +1,59 @@
+name: ci
+
+# On every pull request and on main: gofmt, go vet and go test for both
+# modules (the distribution and gachi-scheduler), and the component images
+# built (not pushed) from the Dockerfile.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  go:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        module: [".", scheduler]
+    defaults:
+      run:
+        working-directory: ${{ matrix.module }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version-file: ${{ matrix.module }}/go.mod
+          cache-dependency-path: ${{ matrix.module }}/go.sum
+      - name: gofmt
+        run: |
+          out=$(gofmt -l .)
+          if [ -n "$out" ]; then
+            echo "not gofmt'ed:"; echo "$out"; exit 1
+          fi
+      - run: go vet ./...
+      - run: go test ./...
+
+  images:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        component: [gachi-tape, gachi-referee, gachi-fantasy, gachi-mover, gachictl]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+      - name: Build
+        run: |
+          docker buildx build \
+            --platform linux/amd64 \
+            --build-arg BIN=${{ matrix.component }} \
+            --tag "gachinetes/${{ matrix.component }}:ci" .

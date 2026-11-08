@@ -85,8 +85,8 @@ func (r *Registry) Put(src, ref, container string) error {
 	}
 	manifest, _ := json.Marshal(map[string]any{
 		"schemaVersion": 2, "mediaType": "application/vnd.oci.image.manifest.v1+json",
-		"config": map[string]any{"mediaType": "application/vnd.oci.image.config.v1+json", "digest": cfgDigest, "size": len(config)},
-		"layers": []any{map[string]any{"mediaType": "application/vnd.oci.image.layer.v1.tar", "digest": layer, "size": size}},
+		"config":      map[string]any{"mediaType": "application/vnd.oci.image.config.v1+json", "digest": cfgDigest, "size": len(config)},
+		"layers":      []any{map[string]any{"mediaType": "application/vnd.oci.image.layer.v1.tar", "digest": layer, "size": size}},
 		"annotations": annotations,
 	})
 	mDigest, err := r.putBlob(manifest)
