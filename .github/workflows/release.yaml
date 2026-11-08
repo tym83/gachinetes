@@ -1,0 +1,88 @@
+name: release
+
+# On a v* tag: test, build the binaries for linux (amd64, arm64) and publish
+# them as a GitHub release with notes from CHANGELOG.md; build and push the
+# component images to ghcr.io/tym83/gachinetes/<component>:<tag>.
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  binaries:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: |
+            go.sum
+            scheduler/go.sum
+      - run: go test ./...
+      - name: Build
+        run: |
+          set -euo pipefail
+          for arch in amd64 arm64; do
+            out="build/gachinetes_${GITHUB_REF_NAME}_linux_${arch}"
+            mkdir -p "$out" dist
+            CGO_ENABLED=0 GOOS=linux GOARCH="$arch" go build -trimpath -ldflags=-s -o "$out/" ./cmd/...
+            (cd scheduler && CGO_ENABLED=0 GOOS=linux GOARCH="$arch" go build -trimpath -ldflags=-s -o "../$out/gachi-scheduler" ./cmd/gachi-scheduler)
+            cp LICENSE README.md "$out/"
+            tar -C build -czf "dist/$(basename "$out").tar.gz" "$(basename "$out")"
+          done
+          (cd dist && sha256sum *.tar.gz > checksums.txt)
+      - name: Release notes
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          awk -v v="$version" '
+            $0 ~ "^## \\[" v "\\]" { on = 1; next }
+            on && /^## \[/ { exit }
+            on && /^\[.*\]: / { exit }
+            on { print }
+          ' CHANGELOG.md > notes.md
+          test -s notes.md
+      - name: Create release
+        run: |
+          gh release create "${GITHUB_REF_NAME}" \
+            --title "Gachinetes ♂ ${GITHUB_REF_NAME}" \
+            --notes-file notes.md \
+            dist/*
+
+  images:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        component: [gachi-tape, gachi-referee, gachi-fantasy, gachi-mover, gachictl]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      - name: Build and push
+        run: |
+          image="ghcr.io/tym83/gachinetes/${{ matrix.component }}"
+          docker buildx build \
+            --platform linux/amd64,linux/arm64 \
+            --build-arg BIN=${{ matrix.component }} \
+            --label org.opencontainers.image.source=https://github.com/${GITHUB_REPOSITORY} \
+            --label org.opencontainers.image.version=${GITHUB_REF_NAME} \
+            --label org.opencontainers.image.licenses=Apache-2.0 \
+            --tag "${image}:${GITHUB_REF_NAME}" \
+            --tag "${image}:latest" \
+            --push .
