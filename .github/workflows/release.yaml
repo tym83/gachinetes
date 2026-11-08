@@ -3,16 +3,20 @@ name: release
 # On a v* tag: test, build the binaries for linux (amd64, arm64) and publish
 # them as a GitHub release with notes from CHANGELOG.md; build and push the
 # component images to ghcr.io/tym83/gachinetes/<component>:<tag>.
+# Run by hand (workflow_dispatch), it only pushes the images of the branch
+# it runs on as :edge, for trying main between releases.
 on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
   binaries:
+    if: github.ref_type == 'tag'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -79,13 +83,19 @@ jobs:
           image="ghcr.io/tym83/gachinetes/${{ matrix.component }}"
           file=Dockerfile
           [ "${{ matrix.component }}" = gachi-fantasy-preview ] && file=Dockerfile.preview
+          if [ "${GITHUB_REF_TYPE}" = tag ]; then
+            version=${GITHUB_REF_NAME}
+            tags=(--tag "${image}:${GITHUB_REF_NAME}" --tag "${image}:latest")
+          else
+            version=edge-${GITHUB_SHA::7}
+            tags=(--tag "${image}:edge")
+          fi
           docker buildx build \
             --file "$file" \
             --platform linux/amd64,linux/arm64 \
             --build-arg BIN=${{ matrix.component }} \
             --label org.opencontainers.image.source=https://github.com/${GITHUB_REPOSITORY} \
-            --label org.opencontainers.image.version=${GITHUB_REF_NAME} \
+            --label org.opencontainers.image.version=${version} \
             --label org.opencontainers.image.licenses=Apache-2.0 \
-            --tag "${image}:${GITHUB_REF_NAME}" \
-            --tag "${image}:latest" \
+            "${tags[@]}" \
             --push .
