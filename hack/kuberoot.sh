@@ -11,13 +11,16 @@
 #   hack/kuberoot.sh console <name>
 #
 #   KUBEROOT_SRC  a checkout of kuberoot (default: ../kuberoot)
-#   KUBEROOT_REF  what of it to build (default: HEAD)
+#   KUBEROOT_REF  what of it to build (default: origin/main, fetched first);
+#                 a branch not merged yet, such as
+#                 KUBEROOT_REF=origin/chore/bump-upstream-2026-11, or HEAD
+#                 for the checkout as it is
 #   NS            the builder's namespace (default: tenant-gachinetes)
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 SRC=${KUBEROOT_SRC:-$ROOT/../kuberoot}
-REF=${KUBEROOT_REF:-HEAD}
+REF=${KUBEROOT_REF:-origin/main}
 NS=${NS:-tenant-gachinetes}
 export KUBECONFIG=${KUBECONFIG_WORKSHOP:-$HOME/workshop.txt}
 CTX=${KUBE_CONTEXT:-admin@workshop}
@@ -25,6 +28,11 @@ CTX=${KUBE_CONTEXT:-admin@workshop}
 work=$(mktemp -d)
 trap 'rm -rf "${work}"' EXIT
 
+# Only remote-tracking refs move: the checkout's branch and files stay.
+case "${REF}" in
+  origin/*) git -C "${SRC}" fetch -q origin ;;
+esac
+echo "kuberoot: ${REF} ($(git -C "${SRC}" rev-parse --short "${REF}"))" >&2
 git -C "${SRC}" archive "${REF}" | tar -x -C "${work}"
 # hetzner.sh ships what git sees
 git -C "${work}" init -q

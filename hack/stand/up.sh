@@ -7,7 +7,7 @@ W=/work
 # Each run keeps its own certificates, store and logs: RUN=/work/run-2 for
 # a fresh one.
 R=${RUN:-$W/run}
-V=v1.37.1
+V=v1.37.2
 IP=$(hostname -i | awk '{print $1}')
 export PATH=$W/bin:$PATH
 mkdir -p $W/bin $R/pki $R/kube $R/logs
