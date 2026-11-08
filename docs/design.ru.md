@@ -119,6 +119,29 @@ gachictl fantasize -f upgrade.yaml --until-quiet 5m
 
 В ветке настоящие контейнеры не запускаются: kubelet ветки симулирован.
 
+**Предпросмотр пулреквестов.** Фантазия, которую держат поднятой, — это
+окружение для предпросмотра ценой control plane, а не кластера:
+
+```
+gachictl fantasy preview --pr https://github.com/acme/shop/pull/42 --manifests deploy/ --ttl 72h
+gachictl fantasy merge --pr acme/shop#42      # после слияния запроса
+gachictl fantasy discard --pr acme/shop#42    # после закрытия
+```
+
+`preview` запускает Job в `gachi-fantasies` (образ `gachi-fantasy-preview`:
+gachi-fantasy, kuberoot-store, бинарники control plane, kwok), который
+ответвляется от кассеты, применяет манифесты запроса (из ConfigMap), ждёт
+затишья и публикует отчёт и kubeconfig ветки в ConfigMap и Secret рядом;
+Service выставляет API-сервер ветки на
+`pr-<repo>-<n>.gachi-fantasies.svc:6443`, второй kubeconfig ходит к нему
+через `kubectl port-forward`. Новый пуш начинает предпросмотр заново. Всё
+принадлежит Job, поэтому срок жизни — это срок Job: фантазия
+останавливается через `--ttl`, дедлайн Job страхует, а завершённый Job
+уходит вместе со всем, чем владеет. `merge` применяет манифесты к кластеру с
+той же проверкой конфликтов, что и `--merge`, и выбрасывает предпросмотр.
+[examples/github/fantasy-preview.yaml](../examples/github/fantasy-preview.yaml)
+связывает это с событиями пулреквеста и пишет отчёт комментарием.
+
 ### Пояса: владение полями в apiserver
 
 Сейчас конкуренция оптимистичная (`resourceVersion`, 409, повтор), а

@@ -117,6 +117,29 @@ gachictl fantasize -f upgrade.yaml --until-quiet 5m
 
 Branch workloads never start real containers: branch kubelets are simulated.
 
+**Previews of pull requests.** A fantasy kept up is a preview environment
+that costs a control plane, not a cluster:
+
+```
+gachictl fantasy preview --pr https://github.com/acme/shop/pull/42 --manifests deploy/ --ttl 72h
+gachictl fantasy merge --pr acme/shop#42      # after the request is merged
+gachictl fantasy discard --pr acme/shop#42    # after it is closed
+```
+
+`preview` runs a Job in `gachi-fantasies` (image `gachi-fantasy-preview`:
+gachi-fantasy, kuberoot-store, the control plane's binaries, kwok) that
+branches the tape, applies the request's manifests (from a ConfigMap),
+waits for quiet and publishes the report and the branch's kubeconfig to a
+ConfigMap and a Secret beside it; a Service puts the branch's API server at
+`pr-<repo>-<n>.gachi-fantasies.svc:6443`, and a second kubeconfig reaches it
+through `kubectl port-forward`. A new push starts the preview over.
+Everything belongs to the Job, so the time to live is the Job's: the
+fantasy stops after `--ttl`, the Job's deadline is the backstop, and a
+finished Job goes with all it owns. `merge` applies the manifests to the
+cluster with the same conflict check as `--merge`, then discards the
+preview. [examples/github/fantasy-preview.yaml](../examples/github/fantasy-preview.yaml)
+wires it to pull request events and posts the report as a comment.
+
 ### Belts: field ownership enforced by the apiserver
 
 Today concurrency is optimistic (`resourceVersion`, 409, retry), and

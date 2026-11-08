@@ -19,6 +19,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   s3://… [--at TIME|REVISION] --data-dir DIR` brings the store back with its
   history after the cluster is lost. Needs kuberoot-store with
   `/tape/v1/journal` and `tape restore` (kuberoot-dev/kuberoot#48).
+- **Fantasies as preview environments.** `gachictl fantasy preview --pr
+  URL|N --manifests DIR [--ttl 72h]` runs a fantasy of a pull request's
+  manifests as a Job in `gachi-fantasies`, publishes its report and the
+  branch's kubeconfig, and keeps it up until the TTL; `fantasy merge`
+  applies the manifests unless the cluster moved on, `fantasy discard` and
+  `fantasy list`. New image `gachi-fantasy-preview` (Dockerfile.preview),
+  `deploy/fantasy-preview.yaml`, and a GitHub Actions example in
+  `examples/github/`. `gachi-fantasy` gains `--preview`, `--ttl`, `--listen`
+  and `--san`.
 
 ### Changed
 
