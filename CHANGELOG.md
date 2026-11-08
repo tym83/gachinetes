@@ -12,6 +12,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CI on pull requests and on `main`: gofmt, `go vet` and `go test` for both
   modules, and every component image built without pushing.
 
+### Changed
+
+- `hack/kuberoot.sh` builds kuberoot's `main` by default (fetched first);
+  `KUBEROOT_REF` picks another ref, such as a branch not merged yet.
+- CRI-O v1.37.3 (was v1.37.2); CRIU stays at v4.3, the latest release.
+- Kubernetes libraries and the stand's binaries v1.37.2 (were v1.37.1).
+- README: a table of component versions and where each is set.
+
 ## [0.1.0] - 2026-11-08
 
 First release. Gachinetes is a research distribution: a working study, not a

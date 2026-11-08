@@ -85,12 +85,32 @@ hack/kuberoot.sh build amd64
 hack/kuberoot.sh media amd64 kuberoot.datastore=kuberoot-store kuberoot.store-tape
 ```
 
+`hack/kuberoot.sh` собирает `main` kuberoot; `KUBEROOT_REF` выбирает
+другую ссылку чекаута из `KUBEROOT_SRC` (по умолчанию `../kuberoot`),
+например ещё не влитую ветку:
+
+```
+KUBEROOT_REF=origin/chore/bump-upstream-2026-11 hack/kuberoot.sh build amd64
+```
+
 На другом кластере: в `deploy/` ресурсы зала и рефери; кассете нужно
 хранилище, которое держит историю.
 
 `hack/stand/` поднимает control plane в одном поде и гоняет на нём все
 сценарии; `hack/vm/` проверяет живую миграцию, раунды и тренера на кластере
 из виртуальных машин kuberoot.
+
+## Версии
+
+| Компонент | Версия | Где задаётся |
+|---|---|---|
+| kuberoot | `main` (Kubernetes, ядро, etcd, containerd — как он их закрепляет) | `KUBEROOT_REF` в `hack/kuberoot.sh` |
+| Библиотеки Kubernetes, бинарники стенда | v1.37.2 | `go.mod`, `scheduler/go.mod`, `hack/stand/up.sh` |
+| CRI-O | v1.37.3 | `CRIO_VERSION` в `distro/kuberoot/gachinetes/extras.sh` |
+| CRIU | v4.3, собирается из исходников | `CRIU_VERSION` в `hack/kuberoot.sh` |
+| kwok (фантазии, стенд) | v0.7.0 | `KWOK` в `hack/stand/up.sh` |
+
+kuberoot не поставляет CRI-O и CRIU; Gachinetes привозит их сам.
 
 ## Статус
 

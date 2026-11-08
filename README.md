@@ -83,12 +83,32 @@ hack/kuberoot.sh build amd64
 hack/kuberoot.sh media amd64 kuberoot.datastore=kuberoot-store kuberoot.store-tape
 ```
 
+`hack/kuberoot.sh` builds kuberoot's `main`; `KUBEROOT_REF` picks another
+ref of the checkout in `KUBEROOT_SRC` (default `../kuberoot`), such as a
+branch not merged yet:
+
+```
+KUBEROOT_REF=origin/chore/bump-upstream-2026-11 hack/kuberoot.sh build amd64
+```
+
 On another cluster: `deploy/` has the gym's resources and the referee; the
 tape needs a store that keeps its history.
 
 `hack/stand/` brings up a control plane in one pod and runs every scenario
 against it; `hack/vm/` runs live migration, rounds and the coach on a
 cluster of kuberoot VMs.
+
+## Versions
+
+| Component | Version | Where |
+|---|---|---|
+| kuberoot | `main` (Kubernetes, kernel, etcd, containerd as it pins them) | `KUBEROOT_REF` in `hack/kuberoot.sh` |
+| Kubernetes libraries, stand binaries | v1.37.2 | `go.mod`, `scheduler/go.mod`, `hack/stand/up.sh` |
+| CRI-O | v1.37.3 | `CRIO_VERSION` in `distro/kuberoot/gachinetes/extras.sh` |
+| CRIU | v4.3, built from source | `CRIU_VERSION` in `hack/kuberoot.sh` |
+| kwok (fantasies, stand) | v0.7.0 | `KWOK` in `hack/stand/up.sh` |
+
+kuberoot does not ship CRI-O or CRIU; Gachinetes brings both.
 
 ## Status
 
