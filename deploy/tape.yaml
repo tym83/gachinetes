@@ -41,6 +41,37 @@ subjects:
   name: gachi-tape
   namespace: gachinetes
 ---
+# The replica (docs/design.md, "The tape in S3"): one gachi-tape at a time
+# ships, holding the lease gachi-tape-replicator, where the Secret
+# gachi-tape-replica says.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: gachi-tape:replica
+  namespace: gachinetes
+rules:
+- apiGroups: [coordination.k8s.io]
+  resources: [leases]
+  verbs: [get, create, update]
+- apiGroups: [""]
+  resources: [secrets]
+  resourceNames: [gachi-tape-replica]
+  verbs: [get]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: gachi-tape:replica
+  namespace: gachinetes
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: gachi-tape:replica
+subjects:
+- kind: ServiceAccount
+  name: gachi-tape
+  namespace: gachinetes
+---
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
