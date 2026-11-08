@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-09
+
 ### Added
 
 - CI on pull requests and on `main`: gofmt, `go vet` and `go test` for both
@@ -36,6 +38,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CRI-O v1.37.3 (was v1.37.2); CRIU stays at v4.3, the latest release.
 - Kubernetes libraries and the stand's binaries v1.37.2 (were v1.37.1).
 - README: a table of component versions and where each is set.
+- The release workflow, run by hand, pushes the branch's images as `:edge`
+  for trying `main` between releases.
+
+### Known issues
+
+- The between-people phase of the design is not implemented.
+- The release images are built from this repository only; the kuberoot base
+  images and a gachi-scheduler image are not part of this release (the
+  gachi-scheduler binary is in the tarballs).
 
 ## [0.1.0] - 2026-11-08
 
@@ -98,5 +109,6 @@ product. Phases 1–8 of the [design plan](https://github.com/tym83/gachinetes/b
 - The release images are built from this repository only; the kuberoot base
   images are not part of this release.
 
-[Unreleased]: https://github.com/tym83/gachinetes/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/tym83/gachinetes/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/tym83/gachinetes/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/tym83/gachinetes/releases/tag/v0.1.0
