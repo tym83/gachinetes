@@ -11,6 +11,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - CI on pull requests and on `main`: gofmt, `go vet` and `go test` for both
   modules, and every component image built without pushing.
+- **The tape in S3.** `gachi-tape` ships the tape (a base, then the journal)
+  to S3-compatible storage as it is written: one shipper per cluster by
+  lease, settings from `--replicate` flags or the Secret
+  `gachinetes/gachi-tape-replica`, age encryption (unencrypted only on
+  request), a new base daily, retention. `gachictl tape restore --from
+  s3://… [--at TIME|REVISION] --data-dir DIR` brings the store back with its
+  history after the cluster is lost. Needs kuberoot-store with
+  `/tape/v1/journal` and `tape restore` (kuberoot-dev/kuberoot#48).
 
 ### Changed
 

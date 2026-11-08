@@ -60,6 +60,39 @@ This enables:
 - **Graveyard** — deleted objects stay readable and restorable (see below).
 - **Audit** without a separate audit pipeline.
 
+### The tape in S3: history that outlives the cluster
+
+The tape survives compaction, not the loss of every control plane.
+`gachi-tape` ships it to S3-compatible storage as it is written: a base
+(every key at a revision) and then the journal after it, in segments, read
+from the store's `/tape/v1/journal`. One `gachi-tape` ships at a time, the
+holder of the lease `gachi-tape-replicator`; it takes its settings from
+flags (`--replicate s3://BUCKET/PREFIX`) or from the Secret
+`gachinetes/gachi-tape-replica` in the keys kuberoot's state backups use
+(`bucket`, `s3Endpoint`, `s3Region`, `s3AccessKey`, `s3SecretKey`,
+`encryptionRecipient`, `retention`). Objects are gzipped JSON lines and
+encrypted with age; unencrypted shipping has to be asked for.
+
+A new base comes every day (`baseEvery`), so that a restore need not replay
+everything and retention can drop what is older: the bucket keeps the
+newest base at least `retention` old and everything after it. When the tape
+was cut past what the bucket holds (the shipper was away longer than the
+store keeps history), the bucket starts a new base instead of keeping a
+journal with a hole.
+
+After the cluster is gone:
+
+```
+gachictl tape restore --from s3://tapes/gym --at 2026-11-08T13:00Z \
+  --age-identity key.txt --data-dir /var/lib/kuberoot-store
+```
+
+takes the oldest base whose journal reaches the moment without a gap,
+writes the tape file and has `kuberoot-store tape restore` make a store
+member of it: the keys at their own revisions, and rewind, history,
+graveyard and undelete from that base on. The API server's encryption keys
+are not in the tape; they are needed to read the Secrets back.
+
 ### Rest in peace: undoable delete
 
 A delete moves the object into the graveyard for a retention window instead of
