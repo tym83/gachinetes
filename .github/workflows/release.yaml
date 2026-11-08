@@ -65,7 +65,7 @@ jobs:
       packages: write
     strategy:
       matrix:
-        component: [gachi-tape, gachi-referee, gachi-fantasy, gachi-mover, gachictl]
+        component: [gachi-tape, gachi-referee, gachi-fantasy, gachi-mover, gachictl, gachi-fantasy-preview]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
@@ -77,7 +77,10 @@ jobs:
       - name: Build and push
         run: |
           image="ghcr.io/tym83/gachinetes/${{ matrix.component }}"
+          file=Dockerfile
+          [ "${{ matrix.component }}" = gachi-fantasy-preview ] && file=Dockerfile.preview
           docker buildx build \
+            --file "$file" \
             --platform linux/amd64,linux/arm64 \
             --build-arg BIN=${{ matrix.component }} \
             --label org.opencontainers.image.source=https://github.com/${GITHUB_REPOSITORY} \
