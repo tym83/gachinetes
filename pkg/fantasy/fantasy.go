@@ -231,9 +231,17 @@ func (r *Report) Text() string {
 type ControlPlane struct {
 	Work, Bin string
 	// Base is the first of the ports the copy takes.
-	Base  int
+	Base int
+	// BindAddress is where the API server listens: 127.0.0.1 when empty;
+	// 0.0.0.0 for a preview, reached through a Service.
+	BindAddress string
+	// SANs are more names the API server's certificate holds.
+	SANs  []string
 	procs []*exec.Cmd
 }
+
+// APIPort is the copy's API server's port.
+func (c *ControlPlane) APIPort() int { return c.port(4) }
 
 func (c *ControlPlane) port(n int) int { return c.Base + n }
 
@@ -281,13 +289,17 @@ func (c *ControlPlane) StartStore(ctx context.Context) error {
 func (c *ControlPlane) StartControlPlane(ctx context.Context) error {
 	pki, kube := filepath.Join(c.Work, "pki"), filepath.Join(c.Work, "kube")
 	if _, err := os.Stat(filepath.Join(pki, "ca.crt")); err != nil {
-		if err := makePKI(pki, kube, c.port(4)); err != nil {
+		if err := makePKI(pki, kube, c.port(4), c.SANs); err != nil {
 			return fmt.Errorf("certificates: %w", err)
 		}
 	}
 	p := func(f string) string { return filepath.Join(pki, f) }
+	bind := c.BindAddress
+	if bind == "" {
+		bind = "127.0.0.1"
+	}
 	if err := c.start("kube-apiserver", "--etcd-servers="+c.StoreURL(), "--etcd-compaction-interval=0",
-		"--advertise-address=127.0.0.1", "--bind-address=127.0.0.1", fmt.Sprintf("--secure-port=%d", c.port(4)),
+		"--advertise-address=127.0.0.1", "--bind-address="+bind, fmt.Sprintf("--secure-port=%d", c.port(4)),
 		// The copy has no network for the kubernetes Service to point at.
 		"--endpoint-reconciler-type=none",
 		"--service-cluster-ip-range=10.96.0.0/16",

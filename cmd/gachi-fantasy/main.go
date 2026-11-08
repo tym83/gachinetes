@@ -36,6 +36,21 @@ type flags struct {
 	quiet, timeout                    time.Duration
 	keep, merge                       bool
 	base                              int
+	// A preview (pkg/fantasy/preview.go): its name and namespace, how
+	// long it stays up, where its API server listens and the names it
+	// answers to.
+	preview, previewNS, listen string
+	ttl                        time.Duration
+	sans                       sans
+}
+
+type sans []string
+
+func (s *sans) String() string     { return strings.Join(*s, ",") }
+func (s *sans) Set(v string) error { *s = append(*s, v); return nil }
+
+func (f flags) controlPlane() *fantasy.ControlPlane {
+	return &fantasy.ControlPlane{Work: f.work, Bin: f.bin, Base: f.base, BindAddress: f.listen, SANs: f.sans}
 }
 
 func main() {
@@ -53,9 +68,14 @@ func main() {
 	flag.BoolVar(&f.merge, "merge", false, "then apply the change to the real cluster, unless it wrote the change's objects since the branch")
 	flag.IntVar(&f.base, "port-base", 23000, "the fantasy's ports start here")
 	empty := flag.Bool("empty", false, "start an empty cluster of its own and keep it: a second gym, for away matches")
+	flag.StringVar(&f.preview, "preview", "", "run as the preview NAME: publish the report and a kubeconfig to its ConfigMap and Secret, stay up for --ttl")
+	flag.StringVar(&f.previewNS, "preview-namespace", fantasy.PreviewNamespace, "the preview's namespace")
+	flag.DurationVar(&f.ttl, "ttl", 72*time.Hour, "how long a preview stays up")
+	flag.StringVar(&f.listen, "listen", "", "where the fantasy's API server listens (default 127.0.0.1)")
+	flag.Var(&f.sans, "san", "another name the fantasy's API server answers to (repeatable)")
 	flag.Parse()
 	if *empty {
-		c := &fantasy.ControlPlane{Work: f.work, Bin: f.bin, Base: f.base}
+		c := f.controlPlane()
 		ctx := context.Background()
 		if err := c.StartStore(ctx); err != nil {
 			log.Fatal(err)
@@ -70,7 +90,17 @@ func main() {
 		log.Fatal("-f: a change is needed")
 	}
 	f.changes = strings.Split(changes, ",")
-	rep, err := run(context.Background(), f)
+	if f.preview != "" {
+		if err := preview(f); err != nil {
+			log.Fatal(err)
+		}
+		return
+	}
+	c := f.controlPlane()
+	rep, err := run(context.Background(), f, c)
+	if !f.keep {
+		c.Stop()
+	}
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -91,7 +121,7 @@ func main() {
 // merge applies the change to the real cluster, as the fantasy did, when
 // the cluster has not written the change's objects since the branch.
 func merge(ctx context.Context, f flags, branch int64) error {
-	objs, err := objectsIn(f.changes)
+	objs, err := fantasy.ObjectsIn(f.changes)
 	if err != nil {
 		return err
 	}
@@ -107,12 +137,12 @@ func merge(ctx context.Context, f flags, branch int64) error {
 	if err != nil {
 		return err
 	}
-	cfls, err := conflicts(ctx, cs, dyn, objs, branch)
+	cfls, err := fantasy.Conflicts(ctx, cs, dyn, objs, branch)
 	if err != nil {
 		return err
 	}
 	if len(cfls) > 0 {
-		return mergeError(cfls)
+		return fantasy.MergeError(cfls)
 	}
 	args := []string{"apply", "--server-side", "--force-conflicts", "--field-manager=fantasy"}
 	if f.kubeconfig != "" {
@@ -134,7 +164,8 @@ func realConfig(f flags) (*rest.Config, error) {
 	return clientcmd.NewNonInteractiveDeferredLoadingClientConfig(rules, nil).ClientConfig()
 }
 
-func run(ctx context.Context, f flags) (*fantasy.Report, error) {
+// run plays the change out on c, which it leaves running.
+func run(ctx context.Context, f flags, c *fantasy.ControlPlane) (*fantasy.Report, error) {
 	ctx, cancel := context.WithTimeout(ctx, f.timeout+5*time.Minute)
 	defer cancel()
 	// What the cluster held at the point.
@@ -144,12 +175,6 @@ func run(ctx context.Context, f flags) (*fantasy.Report, error) {
 	}
 	log.Printf("seed: %d keys at revision %d", len(seed.KVs), seed.Revision)
 
-	c := &fantasy.ControlPlane{Work: f.work, Bin: f.bin, Base: f.base}
-	defer func() {
-		if !f.keep {
-			c.Stop()
-		}
-	}()
 	if err := c.StartStore(ctx); err != nil {
 		return nil, err
 	}

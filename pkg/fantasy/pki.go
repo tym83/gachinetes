@@ -86,7 +86,8 @@ func (p *pair) write(dir, name string) error {
 // on 127.0.0.1:apiPort: a cluster authority, the API server's certificate,
 // a front proxy authority and client, the service account key, and
 // kubeconfigs for an admin, the controller manager and the scheduler.
-func makePKI(pki, kube string, apiPort int) error {
+// sans are more names the API server answers to.
+func makePKI(pki, kube string, apiPort int, sans []string) error {
 	for _, d := range []string{pki, kube} {
 		if err := os.MkdirAll(d, 0o700); err != nil {
 			return err
@@ -100,7 +101,7 @@ func makePKI(pki, kube string, apiPort int) error {
 	}
 	api, err := newPair("kube-apiserver", nil, ca, false, server,
 		[]net.IP{net.ParseIP("127.0.0.1"), net.ParseIP("10.96.0.1")},
-		[]string{"localhost", "kubernetes", "kubernetes.default", "kubernetes.default.svc", "kubernetes.default.svc.cluster.local"})
+		append([]string{"localhost", "kubernetes", "kubernetes.default", "kubernetes.default.svc", "kubernetes.default.svc.cluster.local"}, sans...))
 	if err != nil {
 		return err
 	}
