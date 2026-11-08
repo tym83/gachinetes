@@ -3,6 +3,7 @@ module github.com/tym83/gachinetes
 go 1.26.5
 
 require (
+	filippo.io/age v1.2.1
 	github.com/spf13/cobra v1.10.2
 	go.etcd.io/etcd/client/v3 v3.7.3
 	golang.org/x/crypto v0.58.0

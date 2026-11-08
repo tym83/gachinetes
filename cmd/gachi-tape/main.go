@@ -39,6 +39,8 @@ func main() {
 	register := flag.String("register", "", "run as a node service: keep an endpoint of the gachi-tape Service in --namespace at this address")
 	namespace := flag.String("namespace", "gachinetes", "the namespace of the gachi-tape Service")
 	encryption := flag.String("encryption-config", "", "the API server's encryption configuration, to open the Secrets it encrypted")
+	var rf replication
+	rf.register()
 	flag.Parse()
 	cfg, err := rest.InClusterConfig()
 	if *kubeconfig != "" {
@@ -54,6 +56,7 @@ func main() {
 	if *register != "" {
 		go keepEndpoint(context.Background(), cs, *namespace, *register, *listen)
 	}
+	go replicate(context.Background(), rf, cs, *store, *namespace)
 	rh, err := tape.LoadRequestHeader(context.Background(), cs)
 	if err != nil {
 		log.Fatal(err)

@@ -351,7 +351,7 @@ func (a *app) graveyardCmd() *cobra.Command {
 }
 
 func (a *app) infoCmd() *cobra.Command {
-	return &cobra.Command{
+	c := &cobra.Command{
 		Use:   "tape",
 		Short: "What the tape holds",
 		Args:  cobra.NoArgs,
@@ -370,6 +370,8 @@ func (a *app) infoCmd() *cobra.Command {
 			return nil
 		},
 	}
+	c.AddCommand(tapeRestoreCmd())
+	return c
 }
 
 func (a *app) print(v any) error {

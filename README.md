@@ -22,6 +22,12 @@ gachictl undelete ns/shop                    # rest in peace? not today
 gachictl vhs                                 # all of it as a VHS tape
 ```
 
+**The tape in S3.** `gachi-tape` ships the tape to S3-compatible storage as
+it is written, encrypted with age, with retention; after the whole cluster
+is lost, `gachictl tape restore --from s3://… --at 13:00Z --data-dir …`
+brings the store back with its history, so rewind, the graveyard and
+undelete work again.
+
 **The referee.** `gachi-referee` watches every write. Field managers that
 keep taking a field from each other make a `Bout` and an event on the
 object. A `BeltPolicy` names fields and who holds them; anyone else's write
