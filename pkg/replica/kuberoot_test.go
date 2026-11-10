@@ -17,15 +17,15 @@ import (
 // The whole way back: shipped to the bucket, the cluster lost, a tape file
 // from the bucket at a revision, a store made from it by kuberoot-store and
 // started, its tape read at every revision. KUBEROOT_STORE names the
-// kuberoot-store binary; without it, or with one that cannot restore a
-// tape yet, the test is skipped.
+// kuberoot-store binary; without it the test is skipped, and a binary that
+// cannot restore a tape fails it.
 func TestKuberootStoreRestoresTheBucket(t *testing.T) {
 	bin := os.Getenv("KUBEROOT_STORE")
 	if bin == "" {
 		t.Skip("KUBEROOT_STORE is not set")
 	}
 	if out, _ := exec.Command(bin, "tape", "restore").CombinedOutput(); !strings.Contains(string(out), "usage: kuberoot-store tape restore") {
-		t.Skipf("%s cannot restore a tape: %s", bin, out)
+		t.Fatalf("%s cannot restore a tape: %s", bin, out)
 	}
 	r := newRig(t)
 	r.tape.write(put("/registry/configmaps/shop/a", "1"), put("/registry/configmaps/shop/b", "1"))
@@ -76,6 +76,7 @@ func TestKuberootStoreRestoresTheBucket(t *testing.T) {
 	if info.Current != mid || info.From != 1 {
 		t.Fatalf("restored tape: %+v, want 1 to %d", info, mid)
 	}
+	t.Logf("restored tape spans revisions %d to %d", info.From, info.Current)
 	for rev := int64(1); rev <= mid; rev++ {
 		got, err := st.RawRange(ctx, rev)
 		if err != nil {
@@ -88,6 +89,7 @@ func TestKuberootStoreRestoresTheBucket(t *testing.T) {
 		if rev > 1 && got.Time != r.tape.timeOf(rev) {
 			t.Fatalf("revision %d at %d, was %d", rev, got.Time, r.tape.timeOf(rev))
 		}
+		t.Logf("revision %d restored: %d keys match the tape", rev, len(replay(got.KVs, rev)))
 	}
 	graves, err := st.Graveyard(ctx, "/registry/")
 	if err != nil {
@@ -96,6 +98,7 @@ func TestKuberootStoreRestoresTheBucket(t *testing.T) {
 	if len(graves) != 1 || graves[0].Key != "/registry/configmaps/shop/b" {
 		t.Fatalf("graveyard: %+v", graves)
 	}
+	t.Logf("graveyard restored: %s", graves[0].Key)
 }
 
 func freePorts(t *testing.T, n int) []string {
